@@ -15,7 +15,8 @@ class Therapeutic_group(Base):
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)#no puede ser nulo, para que sea nulo =True
 
-    relat_description_therapeutic_group = relationship("Description", back_populates="therapeutic_group_relation_d") 
+    relat_description_therapeutic_group = relationship("Description", back_populates="therapeutic_group_relation_d",passive_deletes=True
+) 
 
     def to_dict(self):#definir un diccionario que devuelva el id y nombre
         return{
@@ -23,14 +24,15 @@ class Therapeutic_group(Base):
             "name": self.name,
         }
     
-    
+# Passive deletes ----> se usa para cuando una tabla tiene un relación con otra, y la que lleva el foreign key de la otra se ponga en null si se borra el registro de la tabla principal
 class Laboratory(Base):
     __tablename__="laboratories"
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
 
-    relat_product_laboratory = relationship("Product", back_populates="laboratory_relation_p") 
+    relat_product_laboratory = relationship("Product", back_populates="laboratory_relation_p",passive_deletes=True
+) 
 
     def to_dict(self):
         return{
@@ -44,7 +46,7 @@ class Generic(Base):
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
 
-    relat_product_generic = relationship("Product", back_populates="generic_relation_p") 
+    relat_product_generic = relationship("Product", back_populates="generic_relation_p",passive_deletes=True) 
    
     def to_dict(self):
         return{
@@ -61,17 +63,22 @@ class Description(Base):
     id = Column(Integer,primary_key=True)
     description = Column(String, nullable=False)#no puede ser nulo, para que sea nulo =True
 
-    therapeutic_group_id = Column(Integer, ForeignKey("therapeutic_groups.id", ondelete="RESTRICT",onupdate="CASCADE"),nullable=False)
+    therapeutic_group_id = Column(Integer, ForeignKey("therapeutic_groups.id", ondelete="RESTRICT"),nullable=False)
     therapeutic_group_relation_d = relationship("Therapeutic_group", back_populates="relat_description_therapeutic_group")
 
-    relat_family_description = relationship("Family", back_populates="description_relation_f") 
+    relat_family_description = relationship("Family", back_populates="description_relation_f",passive_deletes=True) 
 
-    def to_dict(self):#definir un diccionario que devuelva el id y nombre
-        return{
+    def to_dict(self, include_therapeutic_group: bool = False):#definir un diccionario que devuelva el id y nombre
+        data = {
             "id": self.id,
             "description": self.description,
             "therapeutic_group_id": self.therapeutic_group_id
         }
+
+        if include_therapeutic_group and self.therapeutic_group_relation_d:
+            data["therapeutic_group"] = self.therapeutic_group_relation_d.to_dict()
+
+        return data
 
 class Family(Base):
     __tablename__="families" 
@@ -79,34 +86,42 @@ class Family(Base):
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
     
-    description_id = Column(Integer, ForeignKey("descriptions.id", ondelete="RESTRICT",onupdate="CASCADE"),nullable=True)
+    description_id = Column(Integer, ForeignKey("descriptions.id", ondelete="RESTRICT"),nullable=True)
     description_relation_f = relationship("Description", back_populates="relat_family_description")
 
     mechanism_of_action = Column(String, nullable=True)
 
-    relat_product_family = relationship("Product", back_populates="family_relation_p") 
+    relat_product_family = relationship("Product", back_populates="family_relation_p",passive_deletes=True
+ ) 
 
-    def to_dict(self):
-        return{
+    def to_dict(self, include_description: bool = False,
+        include_therapeutic_group: bool = False):
+        data = {
             "id": self.id,
             "name": self.name,
             "description_id": self.description_id,
             "mechanism_of_action": self.mechanism_of_action
-
         }
+
+        if include_description and self.description_relation_f:
+            data["description"] = self.description_relation_f.to_dict(
+                include_therapeutic_group=include_therapeutic_group
+            )
+
+        return data
     
 class Product(Base):
     __tablename__="products" 
 
     id = Column(Integer,primary_key=True)
     
-    family_id = Column(Integer, ForeignKey("families.id", ondelete="RESTRICT",onupdate="CASCADE"),nullable=False)
+    family_id = Column(Integer, ForeignKey("families.id", ondelete="RESTRICT"),nullable=False)
     family_relation_p = relationship("Family", back_populates="relat_product_family")
 
-    laboratory_id = Column(Integer, ForeignKey("laboratories.id", ondelete="RESTRICT",onupdate="CASCADE"),nullable=True)
+    laboratory_id = Column(Integer, ForeignKey("laboratories.id", ondelete="RESTRICT"),nullable=True)
     laboratory_relation_p = relationship("Laboratory", back_populates="relat_product_laboratory")
 
-    generic_id = Column(Integer, ForeignKey("generics.id", ondelete="RESTRICT",onupdate="CASCADE"),nullable=True)
+    generic_id = Column(Integer, ForeignKey("generics.id", ondelete="RESTRICT"),nullable=True)
     generic_relation_p = relationship("Generic", back_populates="relat_product_generic")
 
     commercial_name = Column(String(100), nullable=False)
@@ -117,20 +132,57 @@ class Product(Base):
 
     is_active = Column(Boolean, nullable=False, default=True) #true producto activo, false inactivo
 
-    def to_dict(self):
-        return{
+    def to_dict(
+        self,
+        include_family: bool = False,
+        include_laboratory: bool = False,
+        include_generic: bool = False,
+        include_description: bool = False,
+        include_therapeutic_group: bool = False
+    ):
+        data = {
             "id": self.id,
             "family_id": self.family_id,
             "laboratory_id": self.laboratory_id,
             "generic_id": self.generic_id,
             "commercial_name": self.commercial_name,
-            "dosage_form": self.dosage_form,
             "concentration": self.concentration,
+            "dosage_form": self.dosage_form,
             "posology": self.posology,
             "notes": self.notes,
             "is_active": self.is_active,
-
         }
+
+        if include_family and self.family_relation_p:
+            data["family"] = self.family_relation_p.to_dict(
+                include_description=include_description,
+                include_therapeutic_group=include_therapeutic_group
+            )
+
+        if include_laboratory and self.laboratory_relation_p:
+            data["laboratory"] = self.laboratory_relation_p.to_dict()
+
+        if include_generic and self.generic_relation_p:
+            data["generic"] = self.generic_relation_p.to_dict()
+
+        return data
     
+    #------------------------#
+class User(Base):
+    __tablename__="users"
 
+    id = Column(Integer,primary_key=True)
+    identification = Column(String(15),nullable=False, unique=True)
+    email = Column(String(100),nullable=True, unique=True)
+    full_name = Column(String(200),nullable=False)
+    password_hash = Column(String(200),nullable=False) #password nunca se devuelve e el to dict
+    is_active = Column(Integer, nullable=False, default=1) #activo=1
 
+    def to_dict(self):
+        return{
+            "id": self.id,
+            "identification": self.identification,
+            "email": self.email,
+            "full_name": self.full_name,
+            "is_active": self.is_active
+        }

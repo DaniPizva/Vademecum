@@ -1,7 +1,13 @@
 from flask import Blueprint, request
 import routes.Therapeutic_group.Therapeutic_group_controller as Therapeutic_group_controller
+from flask_jwt_extended import jwt_required
 
 Therapeutic_group_bp = Blueprint("Therapeutic_group_bp", __name__)
+@Therapeutic_group_bp.before_request
+@jwt_required()
+def before_request():
+    pass  #opcion de automatizacion de todas las rutas de cities , antes de que recorra cualquier ruta, verifica si hay un token 
+
 
 @Therapeutic_group_bp.route("/getAll", methods=["GET"]) #nombre de la ruta getall, y metodo get
 def getAll():

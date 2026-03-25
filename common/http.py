@@ -45,9 +45,10 @@ def forbidden(message="Forbidden"):
     }
     return jsonify(response), 403
  
-def unauthorized(message="Unauthorized"):
+def unauthorized(message="Unauthorized", errors=None):
     response = {
         "status" : "error",
-        "message": message
+        "message": message,
+        "errors" : errors
     }
     return jsonify(response), 401 #que no se tiene permiso para acceder al recurso solicitado
