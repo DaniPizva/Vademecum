@@ -12,7 +12,8 @@ from routes.generics.generics_routes import generics_bp
 from routes.laboratories.laboratories_routes import laboratories_bp
 from routes.families.families_routes import families_bp
 from routes.products.products_routes import products_bp
-
+from routes.products_images.products_images_routes import products_images_bp
+from routes.description_images.description_images_routes import description_images_bp
 
 from datetime import timedelta
 
@@ -23,7 +24,7 @@ def run_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=int(os.getenv("JWT_EXPIRES_MIN")))
     jwt = JWTManager(app)
     
-    CORS(
+    CORS(app,
         resources= {r"/*": {"origins": "*"}},
         supports_credentials= False,
         expose_headers=["Authorization"],
@@ -38,7 +39,10 @@ def run_app():
     app.register_blueprint(laboratories_bp, url_prefix="/laboratories")
     app.register_blueprint(families_bp, url_prefix="/families")
     app.register_blueprint(products_bp, url_prefix="/products")
+    app.register_blueprint(products_images_bp, url_prefix="/products_images")
+    app.register_blueprint(description_images_bp, url_prefix="/description_images")
     return app
+    
 
 app = run_app()
 # 
