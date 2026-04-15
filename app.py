@@ -24,6 +24,7 @@ def run_app():
     jwt = JWTManager(app)
     
     CORS(
+        app,
         resources= {r"/*": {"origins": "*"}},
         supports_credentials= False,
         expose_headers=["Authorization"],

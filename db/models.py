@@ -1,7 +1,7 @@
 #tablas en python se llaman models
 from __future__ import annotations 
 
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean, Text
 from sqlalchemy.orm import relationship #para crear una relacion # object relation mapper
 
 from db.db import Base
@@ -185,4 +185,40 @@ class User(Base):
             "email": self.email,
             "full_name": self.full_name,
             "is_active": self.is_active
+        }
+        
+       
+class Roles(Base):
+    __tablename__ = "roles"
+
+    id  = Column(Integer, primary_key=True)
+    nombre= Column(Text, nullable=False)
+    description = Column(Text, nullable=False, unique=True)
+
+    #Relaciones
+    relat_role_id = relationship('Users_roles', back_populates="role_id_relationship")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nombre": self.nombre,
+            "description": self.description
+        }
+        
+
+class Users_roles(Base):
+    #Nombre de tabla
+    __tablename__ = "users_roles"
+    #Atributos
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="RESTRICT", onupdate="CASCADE"), primary_key=True)
+    role_id = Column(Integer, ForeignKey('roles.id', ondelete= "RESTRICT", onupdate = "CASCADE"), primary_key=True)
+
+    #Relaciones
+    user_id_relationship = relationship("User", back_populates="relat_user_id")
+    role_id_relationship = relationship("Roles", back_populates="relat_role_id")
+    
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+            "role_id": self.role_id
         }
