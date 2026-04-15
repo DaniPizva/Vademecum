@@ -14,6 +14,7 @@ from routes.families.families_routes import families_bp
 from routes.products.products_routes import products_bp
 from routes.products_images.products_images_routes import products_images_bp
 from routes.description_images.description_images_routes import description_images_bp
+from routes.users.users_routes import users_bp
 
 from datetime import timedelta
 
@@ -42,6 +43,7 @@ def run_app():
     app.register_blueprint(products_bp, url_prefix="/products")
     app.register_blueprint(products_images_bp, url_prefix="/products_images")
     app.register_blueprint(description_images_bp, url_prefix="/description_images")
+    app.register_blueprint(users_bp, url_prefix="/users")
     return app
     
 
