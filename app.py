@@ -24,7 +24,8 @@ def run_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=int(os.getenv("JWT_EXPIRES_MIN")))
     jwt = JWTManager(app)
     
-    CORS(app,
+    CORS(
+        app,
         resources= {r"/*": {"origins": "*"}},
         supports_credentials= False,
         expose_headers=["Authorization"],

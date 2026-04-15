@@ -11,7 +11,8 @@ def loginUser(data):
     if err:
         return unauthorized(message="login invalido", errors=err)
     
-    token = create_access_token(identity=str(user.id))
+    token = create_access_token(identity=str(user["id"]),
+                                additional_claims={"role_id": user["role_id"]})
 
     return ok(
         data={
