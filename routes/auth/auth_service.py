@@ -14,9 +14,8 @@ def get_db():
             db.close()
 
 def loginUser(data): #flecha es lo que devuelve
-    email = data.get("email" or "")
-    password = data.get("password" or "")
-    email = email.strip()
+    email = data.get("email","")
+    password = data.get("password" , "")
     password = password.strip()
 
     if not email or not password:

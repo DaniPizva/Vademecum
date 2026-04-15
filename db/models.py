@@ -166,8 +166,7 @@ class Product(Base):
             data["generic"] = self.generic_relation_p.to_dict()
 
         return data
-    
-    #------------------------#
+
 class User(Base):
     __tablename__="users"
 
@@ -177,6 +176,10 @@ class User(Base):
     full_name = Column(String(200),nullable=False)
     password_hash = Column(String(200),nullable=False) #password nunca se devuelve e el to dict
     is_active = Column(Integer, nullable=False, default=1) #activo=1
+    
+    #relationships
+    relat_user_id = relationship("Users_roles", back_populates="user_id_relationship")
+    
 
     def to_dict(self):
         return{

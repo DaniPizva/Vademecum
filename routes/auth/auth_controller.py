@@ -17,7 +17,7 @@ def loginUser(data):
     return ok(
         data={
             "access_token": token,
-            "user": user.to_dict()
+            "user": user
         }, message = "Login exitoso"  
     ) #user: le devuelve los datos del usuario y suinformacion asociada
 
