@@ -1,13 +1,13 @@
 import os
 from dotenv import load_dotenv
-from db.mongo import get_mongo_db #la ufncion que hace el return de el servidor de mongo
+from db.mongo import get_mongo_db #la función que hace el return de el servidor de mongo
 
 load_dotenv()
-COLLECTION_NAME = os.getenv("MONGO_COLLECTION_PRODUCT_IMAGES")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_PRODUCTS")
 
 def init_mongo():
     db = get_mongo_db()  
-    validator = {
+    validator_products = {
         "$jsonSchema": {
             "bsonType": "object",
             "required": [
@@ -55,17 +55,17 @@ def init_mongo():
 
     collections = db.list_collection_names()
     if COLLECTION_NAME not in collections:
-        db.create_collection(COLLECTION_NAME, validator=validator)
+        db.create_collection(COLLECTION_NAME, validator=validator_products)
 
 if __name__== "__main__":
     init_mongo()
     
 load_dotenv()
-COLLECTION_NAME = os.getenv("MONGO_COLLECTION_DESCRIPTION_IMAGES")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_DESCRIPTION")
 
 def init_mongo():
     db = get_mongo_db()  
-    validator = {
+    validator_description = {
         "$jsonSchema": {
             "bsonType": "object",
             "required": [
@@ -113,7 +113,7 @@ def init_mongo():
 
     collections = db.list_collection_names()
     if COLLECTION_NAME not in collections:
-        db.create_collection(COLLECTION_NAME, validator=validator)
+        db.create_collection(COLLECTION_NAME, validator=validator_description)
 
 if __name__== "__main__":
     init_mongo()

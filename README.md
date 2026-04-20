@@ -7,7 +7,6 @@ Equipo de Trabajo
 
 Descripción del Taller
 
-Este taller corresponde al primer seguimiento asociado al proyecto final del curso.
-El objetivo principal es realizar la normalización del archivo Vademécum Optometría, integrarlo a una base de datos relacional y desarrollar un sistema CRUD funcional utilizando Python.
+El objetivo principal es realizar la digitalización del sistema archivo Vademécum Optometría, integrarlo a una base de datos relacional con la cual se interactua por medio de una pagina web.
 
-El proyecto incluye la configuración del entorno, la conexión a base de datos, la creación de modelos, relaciones, rutas y la validación mediante Postman.
+El proyecto incluye la configuración del entorno, la conexión a base de datos, la creación de modelos, relaciones, rutas y la validación mediante Postman, creando un sistema basado en angular y python.

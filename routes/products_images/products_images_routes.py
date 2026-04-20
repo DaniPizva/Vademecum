@@ -15,14 +15,14 @@ def before_request():
 def getAll():
     return products_images_controller.getAll()
 
-@products_images_bp.route("/createProductImage", methods=["POST"])
+@products_images_bp.route("/create", methods=["POST"])
 def createProductImage():
     return products_images_controller.createProductImage(request.get_json() or {})
 
-@products_images_bp.route("/deleteProductImage/<string:id>", methods=["DELETE"]) # el path <int:id>
+@products_images_bp.route("/delete/<string:id>", methods=["DELETE"]) # el path <int:id>
 def deleteProductImage(id):
     return products_images_controller.deleteProductImage(id) 
 
-@products_images_bp.route("/updateProductImage/<string:id>", methods=["PUT"]) # el path <int:id>
+@products_images_bp.route("/update/<string:id>", methods=["PUT"]) # el path <int:id>
 def updateProductImage(id):
     return products_images_controller.updateProductImage(id , request.get_json() or {})

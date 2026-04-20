@@ -36,7 +36,7 @@ def run_app():
     ## registrar rutas creadas en routes
     app.register_blueprint(Therapeutic_group_bp, url_prefix="/Therapeutic_group")
     app.register_blueprint(descriptions_bp, url_prefix="/descriptions")
-    app.register_blueprint(auth_bp, url_prefix="/users")
+    app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(generics_bp, url_prefix="/generics")
     app.register_blueprint(laboratories_bp, url_prefix="/laboratories")
     app.register_blueprint(families_bp, url_prefix="/families")

@@ -12,3 +12,11 @@ def before_request():
 @users_bp.route("/getAll", methods=["GET"]) #nombre de la ruta getall, y metodo get
 def getAll():
     return users_controller.getAll()
+
+@users_bp.route("/delete/<string:id>", methods=["DELETE"]) # el path <int:id>
+def delete(id):
+    return users_controller.delete(id) 
+
+@users_bp.route("/update/<string:id>", methods=["PUT"]) # el path <int:id>
+def update(id):
+    return users_controller.update(id , request.get_json() or {})

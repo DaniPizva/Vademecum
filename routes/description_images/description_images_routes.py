@@ -15,14 +15,14 @@ def before_request():
 def getAll():
     return description_images_controller.getAll()
 
-@description_images_bp.route("/createDescriptionImage", methods=["POST"])
+@description_images_bp.route("/create", methods=["POST"])
 def createDescriptionImage():
     return description_images_controller.createDescriptionImage(request.get_json() or {})
 
-@description_images_bp.route("/deleteDescriptionImage/<string:id>", methods=["DELETE"]) # el path <int:id>
+@description_images_bp.route("/delete/<string:id>", methods=["DELETE"]) # el path <int:id>
 def deleteDescriptionImage(id):
     return description_images_controller.deleteDescriptionImage(id) 
 
-@description_images_bp.route("/updateDescriptionImage/<string:id>", methods=["PUT"]) # el path <int:id>
+@description_images_bp.route("/update/<string:id>", methods=["PUT"]) # el path <int:id>
 def updateDescriptionImage(id):
     return description_images_controller.updateDescriptionImage(id , request.get_json() or {})

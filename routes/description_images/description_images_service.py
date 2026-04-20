@@ -10,7 +10,7 @@ from db.mongo_models import DescriptionImage
 from db.models import Description
 import os
  
-COLLECTION_NAME = os.getenv("MONGO_COLLECTION_DESCRIPTION_IMAGES")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_DESCRIPTION")
 #en mongo elservice cambia:
 #collection.find() [getall]
 #collection.find_one()[create]
@@ -47,9 +47,16 @@ def createDescriptionImage(data: Dict[str, Any]) -> Tuple[Optional[DescriptionIm
         # VALIDAR QUE EL DESCRIPTTIONN EXISTA
         with get_db() as db:
             description = db.query(Description).filter(Description.id == description_id).first()
-
+        
             if not description:
                 return None, {"description_id": "Description does not exist"}
+        
+        collection = get_collection()
+
+        #  VALIDAR QUE NO EXISTA YA UN DOCUMENTO CON EL MISMO "description_id".
+        existing = collection.find_one({"description_id": description_id})
+        if existing:
+            return None, {"description_id": "An image for this description already exists"}
 
         doc = {
             "description_id": description_id,
@@ -60,7 +67,6 @@ def createDescriptionImage(data: Dict[str, Any]) -> Tuple[Optional[DescriptionIm
             "updated_at": now
         }
 
-        collection = get_collection()
         result = collection.insert_one(doc)
 
         saved = collection.find_one({"_id": result.inserted_id})

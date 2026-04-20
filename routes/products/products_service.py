@@ -1,6 +1,7 @@
+# routes\products\products_service.py
 from typing import Any, Dict, List, Tuple, Optional
 from contextlib import contextmanager
-
+from sqlalchemy.orm import joinedload
 from db.db import SessionLocal
 from db.models import Product, Family, Laboratory, Generic
 
@@ -16,7 +17,12 @@ def get_db():
 
 def getAll() -> Tuple[List[Product], Any]:
     with get_db() as db:
-        products = db.query(Product).all()
+        products = db.query(Product).options(
+            joinedload(Product.family_relation_p),
+            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.generic_relation_p),
+        ).all()
+
         return products, None
 
 

@@ -10,7 +10,7 @@ from db.mongo_models import ProductImage
 from db.models import Product
 import os
  
-COLLECTION_NAME = os.getenv("MONGO_COLLECTION_PRODUCT_IMAGES")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_PRODUCTS")
 #en mongo elservice cambia:
 #collection.find() [getall]
 #collection.find_one()[create]
@@ -51,6 +51,13 @@ def createProductImage(data: Dict[str, Any]) -> Tuple[Optional[ProductImage], An
             if not product:
                 return None, {"product_id": "Product does not exist"}
 
+        collection = get_collection()
+
+        # VALIDAR QUE NO EXISTA YA UN DOCUMENTO CON EL MISMO "product_id"
+        existing = collection.find_one({"product_id": product_id})
+        if existing:
+            return None, {"product_id": "An image for this product already exists"}
+
         doc = {
             "product_id": product_id,
             "name": (data.get("name") or "").strip(),
@@ -60,7 +67,6 @@ def createProductImage(data: Dict[str, Any]) -> Tuple[Optional[ProductImage], An
             "updated_at": now
         }
 
-        collection = get_collection()
         result = collection.insert_one(doc)
 
         saved = collection.find_one({"_id": result.inserted_id})
@@ -72,7 +78,6 @@ def createProductImage(data: Dict[str, Any]) -> Tuple[Optional[ProductImage], An
         return None, {"value": str(e)}
     except PyMongoError as e:
         return None, {"mongo": str(e)}
-    
     
 def deleteProductImage(id: str) -> Tuple[bool, Any]:
     try:

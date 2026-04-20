@@ -168,21 +168,28 @@ class Product(Base):
         return data
 
 class User(Base):
-    __tablename__="users"
+    __tablename__ = "users"
 
-    id = Column(Integer,primary_key=True)
-    identification = Column(String(15),nullable=False, unique=True)
-    email = Column(String(100),nullable=True, unique=True)
-    full_name = Column(String(200),nullable=False)
-    password_hash = Column(String(200),nullable=False) #password nunca se devuelve e el to dict
-    is_active = Column(Integer, nullable=False, default=1) #activo=1
-    
-    #relationships
+    id = Column(Integer, primary_key=True)
+    identification = Column(String(15), nullable=False, unique=True)
+    email = Column(String(100), nullable=False, unique=True)
+    full_name = Column(String(200), nullable=False)
+    password_hash = Column(String(200), nullable=False)
+    is_active = Column(Integer, nullable=False, default=1)
+
+    # restricción para garantizar el patron del correo : -> "@ces.edu.co ; @uces.edu.co"
+    __table_args__ = (
+        CheckConstraint(
+            "email ~* '^[A-Za-z0-9._%+-]+@(uces\\.edu\\.co|ces\\.edu\\.co)$'",
+            name="email_domain_check"
+        ),
+    )
+
+    # relationships
     relat_user_id = relationship("Users_roles", back_populates="user_id_relationship")
-    
 
     def to_dict(self):
-        return{
+        return {
             "id": self.id,
             "identification": self.identification,
             "email": self.email,

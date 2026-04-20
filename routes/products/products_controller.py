@@ -1,3 +1,4 @@
+# routes\products\products_controller.py
 from common.http import ok, bad_request, created
 from routes.products import products_service
 

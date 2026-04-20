@@ -41,7 +41,7 @@ class DescriptionImage:
   def to_dict(self):
         return {
             "id": str(self._id) if self._id else None,
-            "product_id": self.product_id,
+            "product_id": self.description_id,
             "name": self.name,
             "image_url": self.image_url,
             "image_type": self.image_type,

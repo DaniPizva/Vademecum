@@ -1,3 +1,4 @@
+# routes\products\products_routes.py
 from flask import Blueprint, request
 from routes.products import products_controller
 
