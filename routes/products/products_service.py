@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Tuple, Optional
 from contextlib import contextmanager
 from sqlalchemy.orm import joinedload
 from db.db import SessionLocal
-from db.models import Product, Family, Laboratory, Generic
+from db.models import Product, Family, Laboratory, Generic, Description
 
 
 @contextmanager
@@ -14,11 +14,15 @@ def get_db():
     finally:
         db.close()
 
-
+# Metodo de getAll, este llama los productos,
+# la función JoinedLoad, llama las relaciones directamente dependiento del filtro que genere el componente en el front.
 def getAll() -> Tuple[List[Product], Any]:
     with get_db() as db:
         products = db.query(Product).options(
-            joinedload(Product.family_relation_p),
+            joinedload(Product.family_relation_p)
+                .joinedload(Family.description_relation_f)
+                .joinedload(Description.therapeutic_group_relation_d),
+
             joinedload(Product.laboratory_relation_p),
             joinedload(Product.generic_relation_p),
         ).all()
