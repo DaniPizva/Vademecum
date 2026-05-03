@@ -1,4 +1,4 @@
-# routes\description_images\description_images_service.py
+# routes\products_images\products_images_service.py
 from typing import Any, Dict, List, Tuple, Optional
 from datetime import datetime
 from bson import ObjectId
@@ -7,11 +7,11 @@ from contextlib import contextmanager
  
 from db.mongo import get_mongo_db
 from db.db import SessionLocal #para validar el product se tuvo que agregar
-from db.mongo_models import DescriptionImage
-from db.models import Description
+from db.mongo_models import ProductImage
+from db.models import Product
 import os
  
-COLLECTION_NAME = os.getenv("MONGO_COLLECTION_DESCRIPTION")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_PRODUCTS")
 #en mongo elservice cambia:
 #collection.find() [getall]
 #collection.find_one()[create]
@@ -30,39 +30,39 @@ def get_collection():
     db = get_mongo_db()
     return db[COLLECTION_NAME]
      
-def getAll() -> Tuple[List[DescriptionImage], Any]:
+def get() -> Tuple[List[ProductImage], Any]:
     try:
         collection = get_collection()
         docs = collection.find()
-        description_images = [DescriptionImage(**doc) for doc in docs]
-        return description_images, None
+        products_images = [ProductImage(**doc) for doc in docs]
+        return products_images, None
     except PyMongoError as e:
         return [], {"mongo": str(e)}
  
-def createDescriptionImage(data: Dict[str, Any]) -> Tuple[Optional[DescriptionImage], Any]:
+def create(data: Dict[str, Any]) -> Tuple[Optional[ProductImage], Any]:
     try:
         now = datetime.utcnow()
 
-        description_id = int(data["description_id"])
+        product_id = int(data["product_id"])
 
-        # VALIDAR QUE EL DESCRIPTTIONN EXISTA
+        # VALIDAR QUE EL PRODUCTO EXISTA
         with get_db() as db:
-            description = db.query(Description).filter(Description.id == description_id).first()
-        
-            if not description:
-                return None, {"description_id": "Description does not exist"}
-        
+            product = db.query(Product).filter(Product.id == product_id).first()
+
+            if not product:
+                return None, {"product_id": "Product does not exist"}
+
         collection = get_collection()
 
-        #  VALIDAR QUE NO EXISTA YA UN DOCUMENTO CON EL MISMO "description_id".
-        existing = collection.find_one({"description_id": description_id})
+        # VALIDAR QUE NO EXISTA YA UN DOCUMENTO CON EL MISMO "product_id"
+        existing = collection.find_one({"product_id": product_id})
         if existing:
-            return None, {"description_id": "An image for this description already exists"}
+            return None, {"product_id": "An image for this product already exists"}
 
         doc = {
-            "description_id": description_id,
+            "product_id": product_id,
             "name": (data.get("name") or "").strip(),
-            "image_url": (data.get("image_url") or "").strip(),
+            "image_data": (data.get("image_url") or "").strip(),
             "image_type": (data.get("image_type") or "").strip(),
             "created_at": now,
             "updated_at": now
@@ -71,7 +71,7 @@ def createDescriptionImage(data: Dict[str, Any]) -> Tuple[Optional[DescriptionIm
         result = collection.insert_one(doc)
 
         saved = collection.find_one({"_id": result.inserted_id})
-        return DescriptionImage(**saved), None
+        return ProductImage(**saved), None
 
     except KeyError as e:
         return None, {"required": f"Missing field: {str(e)}"}
@@ -80,8 +80,7 @@ def createDescriptionImage(data: Dict[str, Any]) -> Tuple[Optional[DescriptionIm
     except PyMongoError as e:
         return None, {"mongo": str(e)}
     
-    
-def deleteDescriptionImage(id: str) -> Tuple[bool, Any]:
+def delete(id: str) -> Tuple[bool, Any]:
     try:
         collection = get_collection()
 
@@ -91,14 +90,14 @@ def deleteDescriptionImage(id: str) -> Tuple[bool, Any]:
         result = collection.delete_one({"_id": ObjectId(id)})
 
         if result.deleted_count == 0:
-            return False, {"id": "Description Image not found"}
+            return False, {"id": "Product Image not found"}
 
         return True, None
 
     except PyMongoError as e:
         return False, {"mongo": str(e)}
 
-def updateDescriptionImage(id: str, data: Dict[str, Any]) -> Tuple[Optional[DescriptionImage], Any]:
+def update(id: str, data: Dict[str, Any]) -> Tuple[Optional[ProductImage], Any]:
     try:
         collection = get_collection()
 
@@ -112,23 +111,23 @@ def updateDescriptionImage(id: str, data: Dict[str, Any]) -> Tuple[Optional[Desc
         if "name" in data:
             update_data["name"] = (data.get("name") or "").strip()
 
-        if "image_url" in data:
-            update_data["image_url"] = (data.get("image_url") or "").strip()
+        if "image_data" in data:
+            update_data["image_url"] = (data.get("image_data") or "").strip()
 
         if "image_type" in data:
             update_data["image_type"] = (data.get("image_type") or "").strip()
 
-        if "description_id" in data:
-            description_id = int(data.get("description_id"))
+        if "product_id" in data:
+            product_id = int(data.get("product_id"))
 
-            # VALIDAR QUE EL DESCRIPTION EXISTA
+            # VALIDAR QUE EL PRODUCTO EXISTA
             with get_db() as db:
-                description = db.query(Description).filter(Description.id == description_id).first()
+                product = db.query(Product).filter(Product.id == product_id).first()
 
-                if not description:
-                    return None, {"description_id": "Description does not exist"}
+                if not product:
+                    return None, {"product_id": "Product does not exist"}
 
-            update_data["description_id"] = description_id
+            update_data["product_id"] = product_id
 
         result = collection.update_one(
             {"_id": ObjectId(id)},
@@ -136,10 +135,10 @@ def updateDescriptionImage(id: str, data: Dict[str, Any]) -> Tuple[Optional[Desc
         )
 
         if result.matched_count == 0:
-            return None, {"id": f"Description Image with id {id} not found"}
+            return None, {"id": f"Product Image with id {id} not found"}
 
         updated_doc = collection.find_one({"_id": ObjectId(id)})
-        return DescriptionImage(**updated_doc), None
+        return ProductImage(**updated_doc), None
 
     except ValueError as e:
         return None, {"value": str(e)}

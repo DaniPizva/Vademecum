@@ -1,3 +1,4 @@
+# routes\description_images\description_images_controller.py
 from common.http import ok, bad_request, created
 from routes.description_images import description_images_service
  

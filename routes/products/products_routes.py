@@ -20,7 +20,23 @@ def getAll():
         include_description=include_description,
         include_therapeutic_group=include_therapeutic_group
     )
+    
+@products_bp.route("/getById/<int:id>", methods=["GET"])
+def getById(id):
+    include_family = (request.args.get("include_family", "true").lower() == "true")
+    include_laboratory = (request.args.get("include_laboratory", "true").lower() == "true")
+    include_generic = (request.args.get("include_generic", "true").lower() == "true")
+    include_description = (request.args.get("include_description", "true").lower() == "true")
+    include_therapeutic_group = (request.args.get("include_therapeutic_group", "true").lower() == "true")
 
+    return products_controller.getById(
+        id=id,
+        include_family=include_family,
+        include_laboratory=include_laboratory,
+        include_generic=include_generic,
+        include_description=include_description,
+        include_therapeutic_group=include_therapeutic_group
+    )
 
 @products_bp.route("/createProduct", methods=["POST"])
 def createProduct():

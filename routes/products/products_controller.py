@@ -27,6 +27,30 @@ def getAll(
         message="Products obtenidos con éxito"
     )
 
+def getById(
+    id: int,
+    include_family: bool = True,
+    include_laboratory: bool = True,
+    include_generic: bool = True,
+    include_description: bool = True,
+    include_therapeutic_group: bool = True
+):
+    product, err = products_service.getById(id)
+    if err:
+        # 404 Not Found is the correct semantics
+        from common.http import not_found
+        return not_found(message="Producto no encontrado", errors=err)
+
+    return ok(
+        data=product.to_dict(
+            include_family=include_family,
+            include_laboratory=include_laboratory,
+            include_generic=include_generic,
+            include_description=include_description,
+            include_therapeutic_group=include_therapeutic_group
+        ),
+        message="Producto obtenido con éxito"
+    )
 
 def createProduct(data):
     result, err = products_service.createProduct(data)

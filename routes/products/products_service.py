@@ -28,6 +28,23 @@ def getAll() -> Tuple[List[Product], Any]:
         ).all()
 
         return products, None
+    
+    
+def getById(id: int) -> Tuple[Optional[Product], Any]:
+    with get_db() as db:
+        product = db.query(Product).options(
+            joinedload(Product.family_relation_p)
+                .joinedload(Family.description_relation_f)
+                .joinedload(Description.therapeutic_group_relation_d),
+
+            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.generic_relation_p),
+        ).filter(Product.id == id).first()
+
+        if not product:
+            return None, {"id": f"Product with id {id} not found"}
+
+        return product, None
 
 
 def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
