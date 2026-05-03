@@ -4,7 +4,8 @@ from contextlib import contextmanager
 from sqlalchemy.orm import joinedload
 from db.db import SessionLocal
 from db.models import Product, Family, Laboratory, Generic, Description
-
+from routes.products import images_service
+from db.mongo import get_mongo_db
 
 @contextmanager
 def get_db():
@@ -26,6 +27,13 @@ def getAll() -> Tuple[List[Product], Any]:
             joinedload(Product.laboratory_relation_p),
             joinedload(Product.generic_relation_p),
         ).all()
+        
+        ids = [p.id for p in products]
+        images_map = images_service.get_images_map("product", ids) # Mapea para que no se generen distintas queries por producto
+        print("Images map", images_map)
+        #Retorna la imagen del producto en un ciclo por producto
+        for p in products:
+            p.image = images_map.get(p.id)
 
         return products, None
     
@@ -43,6 +51,16 @@ def getById(id: int) -> Tuple[Optional[Product], Any]:
 
         if not product:
             return None, {"id": f"Product with id {id} not found"}
+        
+        db_mongo = get_mongo_db()
+
+
+        image_doc = db_mongo["images"].find_one({
+            "owner_type": "product",
+            "owner_id": id
+        })
+
+        product.image = image_doc["image_url"] if image_doc else None
 
         return product, None
 

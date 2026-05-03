@@ -152,6 +152,7 @@ class Product(Base):
             "posology": self.posology,
             "notes": self.notes,
             "is_active": self.is_active,
+            "image": getattr(self,"image", None)
         }
 
         if include_family and self.family_relation_p:

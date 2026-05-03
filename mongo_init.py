@@ -1,3 +1,4 @@
+# route: mongo_init.py
 import os
 from dotenv import load_dotenv
 from db.mongo import get_mongo_db
@@ -6,73 +7,58 @@ load_dotenv()
 
 def init_mongo():
     db = get_mongo_db()
-    
-    # Helper to create collection with validator
-    def create_collection_if_not_exists(name, validator):
-        if name not in db.list_collection_names():
-            db.create_collection(name, validator=validator)
-            print(f"Created collection: {name}")
-        else:
-            print(f"Collection already exists: {name}")
-    
-    # Validator for Products collection
-    products_validator = {
+
+    collection_name = "images"
+
+    if collection_name not in db.list_collection_names():
+        db.create_collection(collection_name)
+        print(f"Created collection: {collection_name}")
+    else:
+        print(f"Collection already exists: {collection_name}")
+        db[collection_name].drop()
+
+    # Schema validator (optional but recommended)
+    validator = {
         "$jsonSchema": {
             "bsonType": "object",
-            "required": ["product_id", "name", "image_data", "image_type", "created_at", "updated_at"],
+            "required": ["owner_type", "owner_id", "image_url", "image_type"],
             "properties": {
                 "_id": {"bsonType": "objectId"},
-                "product_id": {"bsonType": "int", "minimum": 1},
-                "name": {"bsonType": "string", "minLength": 1},
-                "image_data": {"bsonType": "string", "maxLength": 15728640},  # ~15 MB base64
-                "image_type": {"enum": ["frontal", "lateral", "etiqueta", "ingredientes", "otra"]},
+                "owner_type": {
+                    "enum": ["product", "description", "user"]
+                },
+                "owner_id": {
+                    "bsonType": "int",
+                    "minimum": 1
+                },
+                "image_url": {
+                    "bsonType": "string",
+                    "minLength": 1
+                },
+                "image_type": {
+                    "enum": ["frontal", "lateral", "etiqueta", "profile", "background", "other"]
+                },
                 "created_at": {"bsonType": "date"},
                 "updated_at": {"bsonType": "date"}
-            },
-            "additionalProperties": False
+            }
         }
     }
-    
-    # Validator for Description collection
-    description_validator = {
-        "$jsonSchema": {
-            "bsonType": "object",
-            "required": ["description_id", "name", "image_data", "image_type", "created_at", "updated_at"],
-            "properties": {
-                "_id": {"bsonType": "objectId"},
-                "description_id": {"bsonType": "int", "minimum": 1},
-                "name": {"bsonType": "string", "minLength": 1},
-                "image_data": {"bsonType": "string", "maxLength": 15728640},
-                "image_type": {"enum": ["frontal", "lateral", "etiqueta", "Composición", "otra"]},
-                "created_at": {"bsonType": "date"},
-                "updated_at": {"bsonType": "date"}
-            },
-            "additionalProperties": False
-        }
-    }
-    
-    # Validator for UserImages collection
-    user_images_validator = {
-        "$jsonSchema": {
-            "bsonType": "object",
-            "required": ["user_id", "name", "image_data", "image_type", "created_at", "updated_at"],
-            "properties": {
-                "_id": {"bsonType": "objectId"},
-                "user_id": {"bsonType": "int", "minimum": 1},
-                "name": {"bsonType": "string", "minLength": 1},
-                "image_data": {"bsonType": "string", "maxLength": 15728640},
-                "image_type": {"enum": ["profile", "ui_icon", "background", "design", "other"]},
-                "created_at": {"bsonType": "date"},
-                "updated_at": {"bsonType": "date"}
-            },
-            "additionalProperties": False
-        }
-    }
-    
-    # Create collections
-    create_collection_if_not_exists(os.getenv("MONGO_COLLECTION_PRODUCTS"), products_validator)
-    create_collection_if_not_exists(os.getenv("MONGO_COLLECTION_DESCRIPTION"), description_validator)
-    create_collection_if_not_exists(os.getenv("MONGO_COLLECTION_USER_IMAGES"), user_images_validator)
+
+    db.command({
+        "collMod": collection_name,
+        "validator": validator,
+        "validationLevel": "strict"
+    })
+
+
+    db[collection_name].create_index([
+        ("owner_type", 1),
+        ("owner_id", 1),
+        ("image_type", 1)
+    ])
+
+    print("Indexes and validator ready")
+
 
 if __name__ == "__main__":
     init_mongo()

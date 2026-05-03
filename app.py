@@ -13,12 +13,10 @@ from routes.generics.generics_routes import generics_bp
 from routes.laboratories.laboratories_routes import laboratories_bp
 from routes.families.families_routes import families_bp
 from routes.products.products_routes import products_bp
-from routes.products_images.products_images_routes import products_images_bp
-from routes.description_images.description_images_routes import description_images_bp
 from routes.users.users_routes import users_bp
 
 from datetime import timedelta
-
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3NzgyMjI4NywianRpIjoiNDdmYWRhZTktMmMyZS00ZWU3LWFhOGUtZjMwZWE3NTAwYzI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3Nzc4MjIyODcsImNzcmYiOiI2ZjMzNWU5MS02ZTgzLTRkNDAtYTA2MS0zYTE0ODZjMGQzZGMiLCJleHAiOjE3Nzc4MjMxODcsInJvbGVfaWQiOjF9.STzSvdudp8p7fCS73E-pjnTQOPR-F610pKQYBsJc-2w
 def run_app():
     load_dotenv()
     app = Flask(__name__)
@@ -42,8 +40,6 @@ def run_app():
     app.register_blueprint(laboratories_bp, url_prefix="/laboratories")
     app.register_blueprint(families_bp, url_prefix="/families")
     app.register_blueprint(products_bp, url_prefix="/products")
-    app.register_blueprint(products_images_bp, url_prefix="/products_images")
-    app.register_blueprint(description_images_bp, url_prefix="/description_images")
     app.register_blueprint(users_bp, url_prefix="/users")
     return app
     
