@@ -178,6 +178,10 @@ class User(Base):
     full_name = Column(String(200), nullable=False)
     password_hash = Column(String(200), nullable=False)
     is_active = Column(Integer, nullable=False, default=1)
+    terms_accepted = Column(Boolean, nullable=False, default=False)
+    must_change_password = Column(Boolean, nullable=False, default=True)
+    first_login_at = Column(Date, nullable=True)
+    password_changed_at = Column(Date, nullable=True)
 
     # restricción para garantizar el patron del correo : -> "@ces.edu.co ; @uces.edu.co"
     __table_args__ = (
@@ -196,7 +200,11 @@ class User(Base):
             "identification": self.identification,
             "email": self.email,
             "full_name": self.full_name,
-            "is_active": self.is_active
+            "is_active": self.is_active,
+            "terms_accepted": self.terms_accepted,
+            "must_change_password": self.must_change_password,
+            "first_login_at": self.first_login_at.isoformat() if self.first_login_at else None,
+            "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
         }
         
        

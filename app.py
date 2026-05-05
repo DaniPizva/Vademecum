@@ -30,7 +30,8 @@ def run_app():
         supports_credentials= False,
         expose_headers=["Authorization"],
         allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        origins=["http://localhost:4200"]
     )
     ## registrar rutas creadas en routes
     app.register_blueprint(Therapeutic_group_bp, url_prefix="/Therapeutic_group")
