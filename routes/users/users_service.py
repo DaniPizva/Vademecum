@@ -45,6 +45,9 @@ def update(id: int, data: Dict[str, Any]) -> Tuple[Optional[User], Any]:
             user.full_name = data["full_name"].strip()
         if "email" in data:
             user.email = data["email"].strip()
+        
+        if "is_active" in data:
+            user.is_active = data["is_active"]
             
             
 
