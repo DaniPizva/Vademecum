@@ -203,8 +203,20 @@ class User(Base):
             "is_active": self.is_active,
             "terms_accepted": self.terms_accepted,
             "must_change_password": self.must_change_password,
-            "first_login_at": self.first_login_at.isoformat() if self.first_login_at else None,
-            "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
+
+            "first_login_at": self.first_login_at.isoformat()
+                if self.first_login_at else None,
+
+            "password_changed_at": self.password_changed_at.isoformat()
+                if self.password_changed_at else None,
+
+            "roles": [
+                {
+                    "id": relation.role_id_relationship.id,
+                    "nombre": relation.role_id_relationship.nombre
+                }
+                for relation in self.relat_user_id
+            ]
         }
         
        
@@ -242,3 +254,4 @@ class Users_roles(Base):
             "user_id": self.user_id,
             "role_id": self.role_id
         }
+        

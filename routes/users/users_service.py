@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Tuple, Optional
 from flask import request
 from contextlib import contextmanager
 from db.db import SessionLocal
-from db.models import User
+from db.models import User, Users_roles
+from sqlalchemy.orm import joinedload
 
 
 @contextmanager
@@ -19,7 +20,7 @@ def get_db():
 
 def getAll() -> Tuple[List[User], Any]:
     with get_db() as db:
-        users = db.query(User).all()
+        users = (db.query(User).options(joinedload(User.relat_user_id).joinedload(Users_roles.role_id_relationship)).all())
         return users, None
 
 
