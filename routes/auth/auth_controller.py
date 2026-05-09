@@ -3,23 +3,25 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 import re
 from common.http import ok, bad_request, unauthorized, created
 from routes.auth import auth_service
+from flask import request
+
 
 
 def loginUser(data):
-    user, err = auth_service.loginUser(data)
+    auth_data, err = auth_service.loginUser(data)
     if err:
         return unauthorized(message="login invalido", errors=err)
 
     # user dict already contains terms_accepted, must_change_password, etc.
-    token = create_access_token(
-        identity=str(user["id"]),
-        additional_claims={"role_id": user["role_id"]}
+    access_token = create_access_token(
+        identity=str(auth_data["user"]["id"]),
+        additional_claims={"roles": [role["code"] for role in auth_data["authorization"]["roles"]]}
     )
 
     return ok(
         data={
-            "access_token": token,
-            "user": user
+            "access_token": access_token,
+            **auth_data
         },
         message="Login exitoso"
     )
@@ -46,12 +48,19 @@ def createUser(data):
 # ----- new endpoints -----
 
 def acceptTerms(user_id):
-    """Marks terms as accepted for the authenticated user."""
-    success, err = auth_service.accept_terms(user_id)
+    ip_address = request.remote_addr
+    user_agent = request.headers.get("User-Agent")
+
+    success, err = auth_service.accept_terms(
+        user_id=user_id,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+
     if err:
         return bad_request(message="Error accepting terms", errors=err)
-    return ok(message="Terms accepted", data={})
 
+    return ok(message="Terms accepted", data={})
 
 def changePassword(user_id, data):
     """Changes password, conditionally requiring current password."""
@@ -69,13 +78,16 @@ def me(user_id):
 
     # Issue a new token to refresh the session (sliding expiration)
     new_token = create_access_token(
-        identity=str(user_state["id"]),
-        additional_claims={"role_id": user_state["role_id"]}
+        identity=str(user_state["user"]["id"]),
+        additional_claims={"roles": [
+            role["code"]
+            for role in user_state["authorization"]["roles"]
+        ]}
     )
 
     return ok(
         data={
-            "user": user_state,
+            **user_state,
             "access_token": new_token
         },
         message="User state refreshed"

@@ -1,25 +1,33 @@
-#configura la conexion con la base de datos
+# db/db.py (Corrected & Optimized)
 
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine #motor de busqueda
-from sqlalchemy.orm import sessionmaker , declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import NullPool  # <--- 1. IMPORT NullPool
 
-
-load_dotenv()#este abre/accede la info del.env , carga la url de nuestra bd 
+load_dotenv()
 
 DATABASE_URL = os.getenv("DB_URL")
-print(DATABASE_URL)
 
 engine = create_engine(
-    DATABASE_URL
+    DATABASE_URL,
+    poolclass=NullPool,          
+    connect_args={
+        'connect_timeout': 15   # Tiempo de conneción antes de generar error.
+    },
+    echo=False,
+    future=True
 )
 
+
+
 SessionLocal = sessionmaker(
-    autocommit=False, 
+    autocommit=False,
     autoflush=False,
     bind=engine
-) #cuando vayamols a insertar un dato, nosotros lo avisamos. #tipo hacer una consulta, nosotros indicamos, no lo hace manual
+)
+
 Base = declarative_base()
 
-print("Connected to DB OK") #ya tenemos conexion con la base de datos, se puede consultar
+print("Connected to DB OK")

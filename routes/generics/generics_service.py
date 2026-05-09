@@ -9,11 +9,18 @@ from db.models import Generic
 
 @contextmanager
 def get_db():
-        db = SessionLocal()
-        try:
-            yield db  #mientras que se consulte se mantenga en la operacion
-        finally:
-            db.close() #cuando se termine se cierra la sesion
+
+    db = SessionLocal()
+
+    try:
+        yield db
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
 
 def getAll()-> Tuple[List[Generic], Any]:
     ## iniciar secion con la base de datos

@@ -1,20 +1,18 @@
 # db\models.py
+
 #tablas en python se llaman models
 from __future__ import annotations 
 
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean, Text
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean, JSON, Text, DateTime
 from sqlalchemy.orm import relationship #para crear una relacion # object relation mapper
-
+import datetime
+from datetime import timezone, datetime
 from db.db import Base
-
-##--------------------------
-##SOlO primary key
-
 class Therapeutic_group(Base):
     __tablename__="therapeutic_groups"
 
     id = Column(Integer,primary_key=True)
-    name = Column(String(100), nullable=False)#no puede ser nulo, para que sea nulo =True
+    name = Column(String(100), nullable=False) #no puede ser nulo, para que sea nulo =True
 
     relat_description_therapeutic_group = relationship("Description", back_populates="therapeutic_group_relation_d",passive_deletes=True
 ) 
@@ -168,31 +166,64 @@ class Product(Base):
             data["generic"] = self.generic_relation_p.to_dict()
 
         return data
-
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
+
+    # Información relativa al usuario
     identification = Column(String(15), nullable=False, unique=True)
     email = Column(String(100), nullable=False, unique=True)
     full_name = Column(String(200), nullable=False)
-    password_hash = Column(String(200), nullable=False)
-    is_active = Column(Integer, nullable=False, default=1)
-    terms_accepted = Column(Boolean, nullable=False, default=False)
-    must_change_password = Column(Boolean, nullable=False, default=True)
-    first_login_at = Column(Date, nullable=True)
-    password_changed_at = Column(Date, nullable=True)
+    password_hash = Column(String(255), nullable=False)
 
-    # restricción para garantizar el patron del correo : -> "@ces.edu.co ; @uces.edu.co"
-    __table_args__ = (
-        CheckConstraint(
-            "email ~* '^[A-Za-z0-9._%+-]+@(uces\\.edu\\.co|ces\\.edu\\.co)$'",
-            name="email_domain_check"
-        ),
+    # Estado
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    # Fechas
+    first_login_at = Column(DateTime(timezone=True))
+    password_changed_at = Column(DateTime(timezone=True))
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
     )
 
-    # relationships
-    relat_user_id = relationship("Users_roles", back_populates="user_id_relationship")
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    last_login_at = Column(DateTime(timezone=True))
+    deleted_at = Column(DateTime(timezone=True))
+
+    # Relaciones
+
+    roles = relationship(
+        "UserRole",
+        foreign_keys="UserRole.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    terms_acceptances = relationship(
+        "UserTermsAcceptance",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    password_history = relationship(
+        "PasswordHistory",
+        back_populates="user"
+    )
+
+    security_events = relationship(
+        "SecurityEvent",
+        back_populates="user"
+    )
 
     def to_dict(self):
         return {
@@ -201,57 +232,185 @@ class User(Base):
             "email": self.email,
             "full_name": self.full_name,
             "is_active": self.is_active,
-            "terms_accepted": self.terms_accepted,
-            "must_change_password": self.must_change_password,
 
-            "first_login_at": self.first_login_at.isoformat()
+            "created_at":
+                self.created_at.isoformat()
+                if self.created_at else None,
+
+            "updated_at":
+                self.updated_at.isoformat()
+                if self.updated_at else None,
+
+            "first_login_at":
+                self.first_login_at.isoformat()
                 if self.first_login_at else None,
 
-            "password_changed_at": self.password_changed_at.isoformat()
+            "password_changed_at":
+                self.password_changed_at.isoformat()
                 if self.password_changed_at else None,
 
-            "roles": [
-                {
-                    "id": relation.role_id_relationship.id,
-                    "nombre": relation.role_id_relationship.nombre
-                }
-                for relation in self.relat_user_id
-            ]
+            "last_login_at":
+                self.last_login_at.isoformat()
+                if self.last_login_at else None,
+
+            "deleted_at":
+                self.deleted_at.isoformat()
+                if self.deleted_at else None
         }
-        
-       
-class Roles(Base):
+
+
+class Role(Base):
     __tablename__ = "roles"
 
-    id  = Column(Integer, primary_key=True)
-    nombre= Column(Text, nullable=False)
-    description = Column(Text, nullable=False, unique=True)
+    id = Column(Integer, primary_key=True)
 
-    #Relaciones
-    relat_role_id = relationship('Users_roles', back_populates="role_id_relationship")
+    code = Column(String(50), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    users = relationship(
+        "UserRole",
+        back_populates="role"
+    )
+
+
+class UserRole(Base):
+    __tablename__ = "user_roles"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        primary_key=True
+    )
+
+    role_id = Column(
+        Integer,
+        ForeignKey("roles.id"),
+        primary_key=True
+    )
+
+    assigned_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    assigned_by = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="roles"
+    )
+
+    role = relationship(
+        "Role",
+        foreign_keys=[role_id],
+        back_populates="users"
+    )
+
+class TermsVersion(Base):
+    __tablename__ = "terms_versions"
+
+    id = Column(Integer, primary_key=True)
     
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "nombre": self.nombre,
-            "description": self.description
-        }
-        
-
-class Users_roles(Base):
-    #Nombre de tabla
-    __tablename__ = "users_roles"
-    #Atributos
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="RESTRICT", onupdate="CASCADE"), primary_key=True)
-    role_id = Column(Integer, ForeignKey('roles.id', ondelete= "RESTRICT", onupdate = "CASCADE"), primary_key=True)
-
-    #Relaciones
-    user_id_relationship = relationship("User", back_populates="relat_user_id")
-    role_id_relationship = relationship("Roles", back_populates="relat_role_id")
+    #Información y atributos generales
+    version = Column(String(50), nullable=False, unique=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String(128), nullable=False)
     
-    def to_dict(self):
-        return {
-            "user_id": self.user_id,
-            "role_id": self.role_id
-        }
-        
+    #Variable de estado
+    is_active = Column(Boolean, nullable=False, default=False)
+    
+    #Fechas y TimeStamps
+    effective_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"))
+
+    acceptances = relationship(
+        "UserTermsAcceptance",
+        back_populates="terms_version"
+    )
+
+class UserTermsAcceptance(Base):
+    __tablename__ = "user_terms_acceptances"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    terms_version_id = Column(
+        Integer,
+        ForeignKey("terms_versions.id"),
+        nullable=False
+    )
+
+    accepted_at = Column(DateTime(timezone=True), nullable=False)
+
+    ip_address = Column(String(45))
+
+    user_agent = Column(Text)
+
+    acceptance_method = Column(String(50))
+
+    user = relationship(
+        "User",
+        back_populates="terms_acceptances"
+    )
+
+    terms_version = relationship(
+        "TermsVersion",
+        back_populates="acceptances"
+    )
+    
+class PasswordHistory(Base):
+    __tablename__ = "password_history"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    password_hash = Column(String(255), nullable=False)
+
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship(
+        "User",
+        back_populates="password_history"
+    )
+    
+class SecurityEvent(Base):
+    __tablename__ = "security_events"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    event_type = Column(String(100), nullable=False)
+
+    ip_address = Column(String(45))
+
+    user_agent = Column(Text)
+
+    event_metadata = Column(JSON)
+
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship(
+        "User",
+        back_populates="security_events"
+    )
