@@ -7,8 +7,7 @@ from contextlib import contextmanager
 from db.db import SessionLocal
 from db.models import User, UserRole
 from sqlalchemy.orm import joinedload
-import datetime
-from datetime import timezone
+from datetime import timezone, datetime
 
 
 
@@ -43,7 +42,12 @@ def delete(id: int) -> Tuple[bool, Any]:
         user = db.query(User).filter(User.id == id).first()
         if not user:
             return False, {"id": "User not found"}
-        user.is_active = False
+        
+        if user.is_active == False:
+            user.is_active = True
+        else:
+            user.is_active = False
+            
         user.updated_at = datetime.now(timezone.utc)
         db.commit()
         return True, None
@@ -55,19 +59,14 @@ def update(id: int, data: Dict[str, Any]) -> Tuple[Optional[User], Any]:
         user = db.query(User).filter(User.id == id).first()
         if not user:
             return False, {"id": f"User with {id} not found"}
+        elif user.is_active == False:
+            return False, {"id": f"user with {id} is deactivated."}
         
         # Update allowed fields (no password)
         if "full_name" in data:
             user.full_name = data["full_name"].strip()
         if "email" in data:
             user.email = data["email"].strip()
-        
-        if "is_active" in data:
-            if isinstance(data["is_active"], bool):
-                user.is_active = data["is_active"]
-            else:
-                return False, {"is_active": "Must be boolean (true/false)"}
-            
             
         user.updated_at = datetime.now(timezone.utc)
         db.commit()
