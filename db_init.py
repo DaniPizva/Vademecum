@@ -10,7 +10,7 @@ def init_db():
     with engine.connect() as connection:
 
         
-        connection.execute(
+        '''connection.execute(
             text("DROP SCHEMA public CASCADE;")
         )
         connection.execute(
@@ -19,7 +19,7 @@ def init_db():
         connection.commit()
 
         print("Schema public recreado")
-
+'''
     
     
     Base.metadata.create_all(bind=engine)

@@ -130,7 +130,12 @@ class Product(Base):
     notes = Column(String, nullable=True)
 
     is_active = Column(Boolean, nullable=False, default=True) #true producto activo, false inactivo
-
+    @property
+    def main_image(self):
+        """Return the first image marked as main, or None."""
+        return next((img for img in self.images if img.is_main), None)
+    images = relationship("ProductImage",back_populates="product",cascade="all, delete-orphan") #Relationship para la URL de la imagen.
+    
     def to_dict(
         self,
         include_family: bool = False,
@@ -150,7 +155,19 @@ class Product(Base):
             "posology": self.posology,
             "notes": self.notes,
             "is_active": self.is_active,
-            "image": getattr(self,"image", None)
+
+            # Backward compatible single image URL
+            "image": self.main_image.image_url if self.main_image else None,
+
+            # NEW: full image collection
+            "images": [
+                {
+                    "id": img.id,
+                    "url": img.image_url,
+                    "is_main": img.is_main
+                }
+                for img in self.images
+            ]
         }
 
         if include_family and self.family_relation_p:
@@ -394,6 +411,7 @@ class PasswordHistory(Base):
     )
     
 class SecurityEvent(Base):
+    
     __tablename__ = "security_events"
 
     id = Column(Integer, primary_key=True)
@@ -414,3 +432,15 @@ class SecurityEvent(Base):
         "User",
         back_populates="security_events"
     )
+    
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
+    image_url = Column(Text, nullable=False)
+    is_main = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", back_populates="images")
