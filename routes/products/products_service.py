@@ -28,7 +28,6 @@ def getAll() -> Tuple[List[Product], None]:
         ).all()
 
         for p in products:
-            # Transient 'image' field = URL of main image (or None)
             p.image = p.main_image.image_url if hasattr(p, 'main_image') and p.main_image else None
 
         return products, None

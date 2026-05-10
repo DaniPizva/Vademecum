@@ -13,7 +13,8 @@ class Therapeutic_group(Base):
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False) #no puede ser nulo, para que sea nulo =True
-
+    image_url = Column(String, nullable=True)
+    
     relat_description_therapeutic_group = relationship("Description", back_populates="therapeutic_group_relation_d",passive_deletes=True
 ) 
 
@@ -21,6 +22,7 @@ class Therapeutic_group(Base):
         return{
             "id": self.id,
             "name": self.name,
+            "image_url": self.image_url
         }
     
 # Passive deletes ----> se usa para cuando una tabla tiene un relación con otra, y la que lleva el foreign key de la otra se ponga en null si se borra el registro de la tabla principal
@@ -29,7 +31,7 @@ class Laboratory(Base):
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
-
+    logo_url = Column(Text,nullable=True)
     relat_product_laboratory = relationship("Product", back_populates="laboratory_relation_p",passive_deletes=True
 ) 
 
@@ -37,6 +39,7 @@ class Laboratory(Base):
         return{
             "id": self.id,
             "name": self.name,
+            "logo_url": self.logo_url
         }
 
 class Generic(Base):
