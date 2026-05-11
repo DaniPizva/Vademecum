@@ -101,8 +101,12 @@ def deleteProduct(id: int) -> Tuple[bool, Any]:
         product = db.query(Product).filter(Product.id == id).first()
         if not product:
             return False, {"id": "Product not found"}
-        db.delete(product)
+        if product.is_active == True:
+            product.is_active = False
+        else:
+            product.is_active = True
         db.commit()
+        db.refresh(product)
         return True, None
 
 def updateProduct(id: int, data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:

@@ -252,30 +252,22 @@ class User(Base):
             "email": self.email,
             "full_name": self.full_name,
             "is_active": self.is_active,
-
-            "created_at":
-                self.created_at.isoformat()
-                if self.created_at else None,
-
-            "updated_at":
-                self.updated_at.isoformat()
-                if self.updated_at else None,
-
-            "first_login_at":
-                self.first_login_at.isoformat()
-                if self.first_login_at else None,
-
-            "password_changed_at":
-                self.password_changed_at.isoformat()
-                if self.password_changed_at else None,
-
-            "last_login_at":
-                self.last_login_at.isoformat()
-                if self.last_login_at else None,
-
-            "deleted_at":
-                self.deleted_at.isoformat()
-                if self.deleted_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "first_login_at": self.first_login_at.isoformat() if self.first_login_at else None,
+            "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
+            "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
+    
+            "roles": [
+                {
+                    "id": ur.role.id,
+                    "code": ur.role.code,
+                    "name": ur.role.name,
+                    "description": ur.role.description
+                }
+                for ur in self.roles
+            ] if self.roles else []
         }
 
 
