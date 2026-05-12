@@ -53,7 +53,7 @@ def deleteProduct(id):
     result, err = products_service.deleteProduct(id)
     if err:
         return bad_request(message="Error deleting product", errors=err)
-    return ok(data={"delete": result}, message=f"Product {id} deleted")
+    return ok(data=result, message=f"Product {id} deleted")
 
 def updateProduct(id, data_body):
     result, err = products_service.updateProduct(id, data_body)

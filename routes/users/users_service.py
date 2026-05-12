@@ -52,25 +52,30 @@ def delete(id: int) -> Tuple[bool, Any]:
         db.commit()
         return True, None
 
-
 def update(id: int, data: Dict[str, Any]) -> Tuple[Optional[User], Any]:
-    """Only profile fields; password change is forbidden here."""
     with get_db() as db:
-        user = db.query(User).filter(User.id == id).first()
+        db.expire_on_commit = False
+        user = (
+            db.query(User)
+            .options(
+                joinedload(User.roles)
+                .joinedload(UserRole.role)       # ← load the whole chain
+            )
+            .filter(User.id == id)
+            .first()
+        )
+
         if not user:
             return False, {"id": f"User with {id} not found"}
         elif user.is_active == False:
             return False, {"id": f"user with {id} is deactivated."}
-        
-        # Update allowed fields (no password)
+
         if "full_name" in data:
             user.full_name = data["full_name"].strip()
         if "email" in data:
             user.email = data["email"].strip()
-            
+
         user.updated_at = datetime.now(timezone.utc)
         db.commit()
-        db.refresh(user)
         return user, None
-
     
