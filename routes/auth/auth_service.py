@@ -144,7 +144,6 @@ def loginUser(data):
             }
         }
         return response, None
-
 def createUser(data: Dict[str, Any]) -> Tuple[Optional[Dict], Any]:
     email = (data.get("email") or "").strip()
     full_name = (data.get("full_name") or "").strip()
@@ -160,6 +159,9 @@ def createUser(data: Dict[str, Any]) -> Tuple[Optional[Dict], Any]:
     now = datetime.now(timezone.utc)
 
     with get_db() as db:
+        # Prevent expiring on commit (keep all data in memory)
+        db.expire_on_commit = False
+
         try:
             if db.query(User).filter(User.email == email).first():
                 return None, {"email": "Ya existe un usuario con ese correo"}
@@ -176,21 +178,23 @@ def createUser(data: Dict[str, Any]) -> Tuple[Optional[Dict], Any]:
                 is_active=True,
                 created_at=now,
                 updated_at=now
-                # first_login_at, password_changed_at quedan NULL
             )
             db.add(user)
-            db.flush()
+            db.flush()   # get user.id
 
             user_role = UserRole(
                 user_id=user.id,
                 role_id=role_id,
                 assigned_at=now,
-                assigned_by=None  # autoregistro, sin administrador
+                assigned_by=None
             )
             db.add(user_role)
 
+            # 🔁 Force the roles collection to be loaded
+            user.roles = [user_role]          # ← replaces the empty InstrumentedList
+
             db.commit()
-            db.refresh(user)
+            # ❌ No db.refresh(user) – this would expire everything
 
             return {
                 "user": user,
