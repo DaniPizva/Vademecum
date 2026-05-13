@@ -4,8 +4,10 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
+from datetime import timedelta
 
-##indicar rutas de acceso a Routes
+# Import your existing Redis client
+from db.Redis import r as redis_client   # <-- ADD THIS
 from routes.Therapeutic_group.Therapeutic_group_routes import Therapeutic_group_bp
 from routes.descriptions.descriptions_routes import descriptions_bp
 from routes.auth.auth_routes import auth_bp
@@ -15,25 +17,40 @@ from routes.families.families_routes import families_bp
 from routes.products.products_routes import products_bp
 from routes.users.users_routes import users_bp
 
-from datetime import timedelta
-# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc3NzgyMjI4NywianRpIjoiNDdmYWRhZTktMmMyZS00ZWU3LWFhOGUtZjMwZWE3NTAwYzI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3Nzc4MjIyODcsImNzcmYiOiI2ZjMzNWU5MS02ZTgzLTRkNDAtYTA2MS0zYTE0ODZjMGQzZGMiLCJleHAiOjE3Nzc4MjMxODcsInJvbGVfaWQiOjF9.STzSvdudp8p7fCS73E-pjnTQOPR-F610pKQYBsJc-2w
+
 def run_app():
     load_dotenv()
     app = Flask(__name__)
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=int(os.getenv("JWT_EXPIRES_MIN")))
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+        minutes=int(os.getenv("JWT_EXPIRES_MIN"))
+    )
     jwt = JWTManager(app)
-    
+
+   
+    app.redis = redis_client   
+
+
+    try:
+        app.redis.ping()
+        print("✅ Redis client ready (from db/Redis.py)")
+    except Exception as e:
+        print(f"⚠️ Redis ping failed: {e}")
+
+    # -----------------------------
+    # Configuración de CORS
+    # -----------------------------
     CORS(
         app,
-        resources= {r"/*": {"origins": "*"}},
-        supports_credentials= False,
+        resources={r"/*": {"origins": "*"}},
+        supports_credentials=False,
         expose_headers=["Authorization"],
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         origins=["http://localhost:4200"]
     )
-    ## registrar rutas creadas en routes
+
+    # Registro de rutas
     app.register_blueprint(Therapeutic_group_bp, url_prefix="/Therapeutic_group")
     app.register_blueprint(descriptions_bp, url_prefix="/descriptions")
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -42,11 +59,12 @@ def run_app():
     app.register_blueprint(families_bp, url_prefix="/families")
     app.register_blueprint(products_bp, url_prefix="/products")
     app.register_blueprint(users_bp, url_prefix="/users")
+
     return app
-    
+
 
 app = run_app()
-# 
+
 if __name__ == "__main__":
     app.run(
         host=os.getenv("HOST", "127.0.0.1"),

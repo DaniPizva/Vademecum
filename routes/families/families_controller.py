@@ -2,32 +2,21 @@ from common.http import ok, bad_request, created
 from routes.families import families_service
 
 
-def getAll(include_description: bool = False, include_therapeutic_group: bool = False):
+def getAll(**kwargs):
     data, err = families_service.getAll()
     if err:
-        return bad_request(message="No se pudo obtener las families", errors=err)
-
-    return ok(
-        data=[
-            d.to_dict(
-                include_description=include_description,
-                include_therapeutic_group=include_therapeutic_group
-            ) for d in data
-        ],
-        message="Families obtenidas con éxito"
-    )
-
+        return bad_request(message="No se pudo obtener las familias", errors=err)
+    return ok(data=data, message="Familias obtenidas con éxito")
 
 def createFamily(data):
     result, err = families_service.createFamily(data)
     if err:
         return bad_request(message="Error creating family", errors=err)
-
+    
     return created(
         data=result.to_dict(include_description=True, include_therapeutic_group=True),
         message="Family created successfully"
     )
-
 
 def deleteFamily(id: int):
     result, err = families_service.deleteFamily(id)

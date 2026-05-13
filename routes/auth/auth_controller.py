@@ -26,24 +26,23 @@ def loginUser(data):
         message="Login exitoso"
     )
 
-
 def createUser(data):
+
     result, err = auth_service.createUser(data)
 
     if err:
-        return bad_request(message="Error creating user", errors=err)
 
-    user = result["user"]
-    temp_password = result["temp_password"]
+        return bad_request(
+            message="Error creating user",
+            errors=err
+        )
 
     return created(
         data={
-            "user": user.to_dict(),
-            "temp_password": temp_password  # solo para desarrollo, luego ha de ser implementado en un sistema.
+            "user": result["user"]
         },
         message="User created successfully"
     )
-
 
 # ----- new endpoints -----
 

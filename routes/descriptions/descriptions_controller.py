@@ -4,11 +4,11 @@ from routes.descriptions import descriptions_service as descriptions_service
 
 
 
-def getAll(): #a controller lo llama routes
+def getAll(**kwargs):
     data, err = descriptions_service.getAll()
     if err:
-        return bad_request(message="No se pudo obtener los descriptions", errors=err)
-    return ok(data=[d.to_dict() for d in data], message="Descriptions obtenidas con éxito")#siempre fevolver como diccionario
+        return bad_request(message="No se pudo obtener las descripciones", errors=err)
+    return ok(data=data, message="Descripciones obtenidas con éxito")
 
 def createDescription(data):
     result, err = descriptions_service.createDescription(data)

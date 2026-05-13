@@ -4,35 +4,45 @@ from routes.products import products_service, images_service
 
 def getAll(include_family=False, include_laboratory=False, include_generic=False,
            include_description=False, include_therapeutic_group=False):
-    data, err = products_service.getAll()
+    data, err = products_service.getAll(
+        include_family=include_family,
+        include_laboratory=include_laboratory,
+        include_generic=include_generic,
+        include_description=include_description,
+        include_therapeutic_group=include_therapeutic_group
+    )
     if err:
         return bad_request(message="No se pudo obtener los products", errors=err)
-    return ok(
-        data=[d.to_dict(
-            include_family=include_family,
-            include_laboratory=include_laboratory,
-            include_generic=include_generic,
-            include_description=include_description,
-            include_therapeutic_group=include_therapeutic_group
-        ) for d in data],
-        message="Products obtenidos con éxito"
-    )
+    return ok(data=data, message="Products obtenidos con éxito")
 
 def getById(id, include_family=True, include_laboratory=True, include_generic=True,
             include_description=True, include_therapeutic_group=True):
-    product, err = products_service.getById(id)
+    product, err = products_service.getById(
+        id=id,
+        include_family=include_family,
+        include_laboratory=include_laboratory,
+        include_generic=include_generic,
+        include_description=include_description,
+        include_therapeutic_group=include_therapeutic_group
+    )
     if err:
         return not_found(message="Producto no encontrado", errors=err)
-    return ok(
-        data=product.to_dict(
-            include_family=include_family,
-            include_laboratory=include_laboratory,
-            include_generic=include_generic,
-            include_description=include_description,
-            include_therapeutic_group=include_therapeutic_group
-        ),
-        message="Producto obtenido con éxito"
-    )
+    # product is already a dict
+    return ok(data=product, message="Producto obtenido con éxito")
+
+def getAllViewModels():
+    data, err = products_service.getAllViewModels()
+    if err:
+        return bad_request(message="No se pudo obtener los viewmodels", errors=err)
+    return ok(data=data, message="Product viewmodels obtenidos con éxito")
+
+
+def getViewById(id):
+    data, err = products_service.getViewById(id)
+    if err:
+        return not_found(message="Producto no encontrado", errors=err)
+    return ok(data=data, message="Product viewmodel obtenido con éxito")
+
 
 def createProduct(data):
     result, err = products_service.createProduct(data)
@@ -70,7 +80,7 @@ def updateProduct(id, data_body):
         message=f"Product {id} updated"
     )
 
-# ---------- Image endpoints ----------
+
 def uploadProductImage(product_id, file, is_main):
     import tempfile, os
     if not file or file.filename == '':

@@ -4,8 +4,13 @@ from typing import Any,Dict,List,Tuple, Optional
 from flask import request
 from contextlib import contextmanager
 from db.db import SessionLocal
+from flask import current_app
+import json
 
 from db.models import Generic
+
+def get_redis():
+    return current_app.redis if hasattr(current_app, 'redis') else None
 
 @contextmanager
 def get_db():
@@ -22,11 +27,23 @@ def get_db():
     finally:
         db.close()
 
-def getAll()-> Tuple[List[Generic], Any]:
-    ## iniciar secion con la base de datos
-     with get_db() as db: #  TRvez de la conexion con la db, re lo retorna al controller
-          generics = db.query(Generic).all() #que consulte la tabla llamda Generic y que traiga todo
-          return generics, None #si tiene Generic y si no, que ninguno
+def getAll() -> Tuple[List[Dict], Any]:
+    redis = get_redis()
+    cache_key = "catalog:generics"
+    
+    if redis:
+        cached = redis.get(cache_key)
+        if cached:
+            return json.loads(cached), None
+
+    with get_db() as db:
+        generics = db.query(Generic).all()
+        serialized = [{"id": g.id, "name": g.name} for g in generics]
+
+    if redis:
+        redis.setex(cache_key, 21600, json.dumps(serialized))
+
+    return serialized, None
      
 def createGeneric(data: Dict[str, Any]) -> Tuple[Optional[Generic],Any]: #flecha es lo que devuelve
      with get_db() as db: #conecta db
@@ -34,6 +51,11 @@ def createGeneric(data: Dict[str, Any]) -> Tuple[Optional[Generic],Any]: #flecha
           db.add(g) #la agrega
           db.commit() #commit ---> lo mete a la db, y refresh manual
           db.refresh(g)
+          
+          
+          redis = get_redis()
+          if redis:
+                    redis.delete("catalog:generics")
           return g, None
 
 def deleteGeneric(id: int) -> Tuple[bool,Any]: #flecha es lo que devuelve

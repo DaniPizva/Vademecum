@@ -21,3 +21,8 @@ def delete(id):
 @users_bp.route("/update/<string:id>", methods=["PUT"]) # el path <int:id>
 def update(id):
     return users_controller.update(id , request.get_json() or {})
+
+
+@users_bp.route("/viewmodels", methods=["GET"])
+def getViewModels():
+    return users_controller.getAllViewModels()

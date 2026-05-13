@@ -4,8 +4,12 @@ from typing import Any,Dict,List,Tuple, Optional
 from flask import request
 from contextlib import contextmanager
 from db.db import SessionLocal
-
 from db.models import Laboratory
+from flask import current_app
+import json
+
+def get_redis():
+    return current_app.redis if hasattr(current_app, 'redis') else None
 
 @contextmanager
 def get_db():
@@ -22,11 +26,23 @@ def get_db():
     finally:
         db.close()
 
-def getAll()-> Tuple[List[Laboratory], Any]:
-    ## iniciar secion con la base de datos
-     with get_db() as db: #  TRvez de la conexion con la db, re lo retorna al controller
-          laboratories = db.query(Laboratory).all() #que consulte la tabla llamda Laboratory y que traiga todo
-          return laboratories, None #si tiene Laboratories y si no, que ninguno
+def getAll() -> Tuple[List[Dict], Any]:
+    redis = get_redis()
+    cache_key = "catalog:laboratories"
+    
+    if redis:
+        cached = redis.get(cache_key)
+        if cached:
+            return json.loads(cached), None
+
+    with get_db() as db:
+        laboratories = db.query(Laboratory).all()
+        serialized = [{"id": lab.id, "name": lab.name} for lab in laboratories]
+
+    if redis:
+        redis.setex(cache_key, 21600, json.dumps(serialized))
+
+    return serialized, None
      
 def createLaboratory(data: Dict[str, Any]) -> Tuple[Optional[Laboratory],Any]: #flecha es lo que devuelve
      with get_db() as db: #conecta db
@@ -34,6 +50,11 @@ def createLaboratory(data: Dict[str, Any]) -> Tuple[Optional[Laboratory],Any]: #
           db.add(l) #la agrega
           db.commit() #commit ---> lo mete a la db, y refresh manual
           db.refresh(l)
+          
+          
+          redis = get_redis()
+          if redis:
+                    redis.delete("catalog:laboratories")
           return l, None
 
 def deleteLaboratory(id: int) -> Tuple[bool,Any]: #flecha es lo que devuelve

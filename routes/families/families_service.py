@@ -3,7 +3,12 @@ from contextlib import contextmanager
 
 from db.db import SessionLocal
 from db.models import Family, Description
+from flask import current_app
+import json
 
+
+def get_redis():
+    return current_app.redis if hasattr(current_app, 'redis') else None
 
 @contextmanager
 def get_db():
@@ -21,10 +26,23 @@ def get_db():
         db.close()
 
 
-def getAll() -> Tuple[List[Family], Any]:
+def getAll() -> Tuple[List[Dict], Any]:
+    redis = get_redis()
+    cache_key = "catalog:families"
+    
+    if redis:
+        cached = redis.get(cache_key)
+        if cached:
+            return json.loads(cached), None
+
     with get_db() as db:
         families = db.query(Family).all()
-        return families, None
+        serialized = [{"id": f.id, "name": f.name} for f in families]
+
+    if redis:
+        redis.setex(cache_key, 21600, json.dumps(serialized))
+
+    return serialized, None
 
 
 def createFamily(data: Dict[str, Any]) -> Tuple[Optional[Family], Any]:
@@ -51,6 +69,10 @@ def createFamily(data: Dict[str, Any]) -> Tuple[Optional[Family], Any]:
         db.add(f)
         db.commit()
         db.refresh(f)
+        
+        redis = get_redis()
+        if redis:
+               redis.delete("catalog:families")
         return f, None
 
 

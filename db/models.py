@@ -219,6 +219,19 @@ class User(Base):
 
     last_login_at = Column(DateTime(timezone=True))
     deleted_at = Column(DateTime(timezone=True))
+    
+    
+    #Autenticación para cambio de contraseña
+    # Verificación temporal
+    temporary_verification_code = Column(
+        String(10),
+        nullable=True
+    )
+
+    verification_code_expires_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
 
     # Relaciones
 

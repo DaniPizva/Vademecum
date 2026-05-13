@@ -2,13 +2,11 @@ from common.http import ok, bad_request, created
 ### ahora cargamos el service
 from routes.generics import generics_service
 
-
-def getAll(): #a controller lo llama routes
+def getAll(**kwargs):
     data, err = generics_service.getAll()
     if err:
-        return bad_request(message="No se pudo obtener las generics", errors=err)
-    return ok(data=[d.to_dict() for d in data], message="Generics obtenidas con éxito")#siempre fevolver como diccionario
-
+        return bad_request(message="No se pudo obtener los genéricos", errors=err)
+    return ok(data=data, message="Genéricos obtenidos con éxito")
 
 def createGeneric(data):
     result, err = generics_service.createGeneric(data)

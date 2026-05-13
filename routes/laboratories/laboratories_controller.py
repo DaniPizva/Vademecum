@@ -3,12 +3,11 @@ from common.http import ok, bad_request, created
 from routes.laboratories import laboratories_service
 
 
-def getAll(): #a controller lo llama routes
+def getAll(**kwargs):
     data, err = laboratories_service.getAll()
     if err:
-        return bad_request(message="No se pudo obtener las laboratories", errors=err)
-    return ok(data=[d.to_dict() for d in data], message="Laboratories obtenidas con éxito")#siempre fevolver como diccionario
-
+        return bad_request(message="No se pudo obtener los laboratorios", errors=err)
+    return ok(data=data, message="Laboratorios obtenidos con éxito")
 
 def createLaboratory(data):
     result, err = laboratories_service.createLaboratory(data)
