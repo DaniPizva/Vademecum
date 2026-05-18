@@ -33,9 +33,9 @@ def run_app():
 
     try:
         app.redis.ping()
-        print("✅ Redis client ready (from db/Redis.py)")
+        print("Redis client ready (from db/Redis.py)")
     except Exception as e:
-        print(f"⚠️ Redis ping failed: {e}")
+        print(f" Redis ping failed: {e}")
 
     # -----------------------------
     # Configuración de CORS
