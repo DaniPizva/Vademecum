@@ -3,11 +3,14 @@ from typing import Any, Dict, List, Tuple, Optional
 from flask import current_app
 from contextlib import contextmanager
 from db.db import SessionLocal
-from db.models import User, UserRole
+from db.models import User, UserRole, UserImage
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError  # corrected import (was django)
 from datetime import timezone, datetime
+from routes.cloudinary.service import upload_image, delete_image
 import json
+import os
+import tempfile
 
 # ------------------------------------------------------------------------------
 # Redis client helper (same as auth_service)
@@ -283,3 +286,300 @@ def update(id: int, data: Dict[str, Any]) -> Tuple[Optional[Dict], Any]:
         except Exception as e:
             db.rollback()
             return None, {"error": str(e)}
+        
+        
+# ------------------------------------------------------------------------------
+# IMAGE HELPERS
+# ------------------------------------------------------------------------------
+
+def invalidate_user_image_caches(user_id: int):
+    """
+    Invalidate every cache affected by profile image changes.
+    """
+
+    invalidate_user_detail(user_id)
+    invalidate_user_session(user_id)
+    invalidate_user_lists()
+
+
+# ------------------------------------------------------------------------------
+# UPLOAD USER IMAGE
+# ------------------------------------------------------------------------------
+
+def upload_user_image(
+    user_id: int,
+    file_storage
+) -> Tuple[Optional[Dict], Any]:
+
+    """
+    Upload user avatar to Cloudinary and persist DB record.
+
+    Flow:
+    1. Validate user
+    2. Save temporary local file
+    3. Upload to Cloudinary
+    4. Remove previous image if exists
+    5. Persist new UserImage record
+    6. Invalidate caches
+    """
+
+    with get_db() as db:
+
+        try:
+
+            # ------------------------------------------------------------------
+            # VALIDATE USER
+            # ------------------------------------------------------------------
+
+            user = (
+                db.query(User)
+                .filter(User.id == user_id)
+                .first()
+            )
+
+            if not user:
+                return None, {
+                    "user": "User not found"
+                }
+
+            if not user.is_active:
+                return None, {
+                    "user": "User is deactivated"
+                }
+
+            # ------------------------------------------------------------------
+            # VALIDATE FILE
+            # ------------------------------------------------------------------
+
+            if not file_storage:
+                return None, {
+                    "image": "No file provided"
+                }
+
+            if file_storage.filename == "":
+                return None, {
+                    "image": "Empty filename"
+                }
+
+            # ------------------------------------------------------------------
+            # CREATE TEMP FILE
+            # ------------------------------------------------------------------
+
+            suffix = os.path.splitext(
+                file_storage.filename
+            )[1]
+
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=suffix
+            )
+
+            temp_path = temp_file.name
+
+            file_storage.save(temp_path)
+
+            temp_file.close()
+
+            # ------------------------------------------------------------------
+            # UPLOAD TO CLOUDINARY
+            # ------------------------------------------------------------------
+
+            image_url, upload_error = upload_image(
+                temp_path,
+                folder="user_avatars"
+            )
+
+            # Remove local temp file immediately after upload
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+            if upload_error:
+                return None, upload_error
+
+            # ------------------------------------------------------------------
+            # REMOVE PREVIOUS IMAGE
+            # ------------------------------------------------------------------
+
+            existing_image = (
+                db.query(UserImage)
+                .filter(UserImage.user_id == user_id)
+                .first()
+            )
+
+            if existing_image:
+
+                # Delete old image from Cloudinary
+                if existing_image.cloudinary_public_id:
+
+                    delete_image(
+                        existing_image.cloudinary_public_id
+                    )
+
+                # Remove DB record
+                db.delete(existing_image)
+                db.flush()
+
+            # ------------------------------------------------------------------
+            # EXTRACT CLOUDINARY PUBLIC ID
+            # ------------------------------------------------------------------
+
+            # Example:
+            # https://res.cloudinary.com/demo/image/upload/v123/user_avatars/abc.jpg
+            #
+            # Needed:
+            # user_avatars/abc
+
+            public_id = None
+
+            try:
+
+                split_marker = "/upload/"
+
+                if split_marker in image_url:
+
+                    path_after_upload = image_url.split(
+                        split_marker
+                    )[1]
+
+                    # remove version segment
+                    path_parts = path_after_upload.split("/")
+
+                    if path_parts[0].startswith("v"):
+                        path_parts = path_parts[1:]
+
+                    public_id = "/".join(path_parts)
+
+                    # remove extension
+                    public_id = os.path.splitext(
+                        public_id
+                    )[0]
+
+            except Exception:
+                public_id = None
+
+            # ------------------------------------------------------------------
+            # CREATE NEW IMAGE RECORD
+            # ------------------------------------------------------------------
+
+            new_image = UserImage(
+                user_id=user_id,
+                image_url=image_url,
+                cloudinary_public_id=public_id
+            )
+
+            db.add(new_image)
+
+            # ------------------------------------------------------------------
+            # UPDATE USER TIMESTAMP
+            # ------------------------------------------------------------------
+
+            user.updated_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+            # ------------------------------------------------------------------
+            # INVALIDATE CACHES
+            # ------------------------------------------------------------------
+
+            invalidate_user_image_caches(user_id)
+
+            # ------------------------------------------------------------------
+            # RESPONSE
+            # ------------------------------------------------------------------
+
+            return {
+                "profile_image_url": image_url
+            }, None
+
+        except Exception as e:
+
+            db.rollback()
+
+            return None, {
+                "error": str(e)
+            }
+
+
+# ------------------------------------------------------------------------------
+# DELETE USER IMAGE
+# ------------------------------------------------------------------------------
+
+def delete_user_image(
+    user_id: int
+) -> Tuple[bool, Any]:
+
+    """
+    Delete user's current avatar from:
+    - Cloudinary
+    - Database
+    """
+
+    with get_db() as db:
+
+        try:
+
+            # ------------------------------------------------------------------
+            # VALIDATE USER
+            # ------------------------------------------------------------------
+
+            user = (
+                db.query(User)
+                .filter(User.id == user_id)
+                .first()
+            )
+
+            if not user:
+                return False, {
+                    "user": "User not found"
+                }
+
+            # ------------------------------------------------------------------
+            # FIND IMAGE RECORD
+            # ------------------------------------------------------------------
+
+            image_record = (
+                db.query(UserImage)
+                .filter(UserImage.user_id == user_id)
+                .first()
+            )
+
+            if not image_record:
+                return False, {
+                    "image": "User has no profile image"
+                }
+
+            # ------------------------------------------------------------------
+            # DELETE FROM CLOUDINARY
+            # ------------------------------------------------------------------
+
+            if image_record.cloudinary_public_id:
+
+                delete_image(
+                    image_record.cloudinary_public_id
+                )
+
+            # ------------------------------------------------------------------
+            # DELETE DB RECORD
+            # ------------------------------------------------------------------
+
+            db.delete(image_record)
+
+            user.updated_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+            # ------------------------------------------------------------------
+            # INVALIDATE CACHES
+            # ------------------------------------------------------------------
+
+            invalidate_user_image_caches(user_id)
+
+            return True, None
+
+        except Exception as e:
+
+            db.rollback()
+
+            return False, {
+                "error": str(e)
+            }

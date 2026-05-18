@@ -114,7 +114,8 @@ def build_user_session(db, user: User) -> Dict[str, Any]:
             "id": user.id,
             "full_name": user.full_name,
             "email": user.email,
-            "is_active": user.is_active
+            "is_active": user.is_active,
+            "profile_image_url": user.profile_image.image_url if user.profile_image else None
         },
         "authorization": {
             "roles": roles_list

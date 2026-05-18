@@ -46,3 +46,71 @@ def getAllViewModels():
     if err:
             return bad_request(...)
     return ok(data=data, message="Modelos de objetos obtenidos con exito")
+
+# ------------------------------------------------------------------------------
+# IMAGE UPLOAD
+# ------------------------------------------------------------------------------
+
+def upload_user_image(user_id: int, file):
+
+    if not file:
+        return bad_request(
+            message="No image file provided",
+            errors={"image": "Missing file"}
+        )
+
+    result, err = users_service.upload_user_image(
+        user_id,
+        file
+    )
+
+    if err:
+        return bad_request(
+            message="Error uploading image",
+            errors=err
+        )
+
+    return ok(
+        data=result,
+        message="Profile image uploaded successfully"
+    )
+
+
+# ------------------------------------------------------------------------------
+# IMAGE DELETE
+# ------------------------------------------------------------------------------
+
+def delete_user_image(user_id: int):
+
+    result, err = users_service.delete_user_image(user_id)
+
+    if err:
+        return bad_request(
+            message="Error deleting image",
+            errors=err
+        )
+
+    return ok(
+        data={"deleted": result},
+        message="Profile image deleted successfully"
+    )
+
+
+# ------------------------------------------------------------------------------
+# GET USER BY ID
+# ------------------------------------------------------------------------------
+
+def getById(id: int):
+
+    data, err = users_service.getById(id)
+
+    if err:
+        return bad_request(
+            message="Error fetching user",
+            errors=err
+        )
+
+    return ok(
+        data=data,
+        message="User fetched successfully"
+    )

@@ -17,3 +17,12 @@ def upload_image(file_path, folder="vademecum"):
     
     except Exception as e:
         return None, {"cloudinary": str(e)}
+    
+def delete_image(public_id: str) -> bool:
+    try:
+        result = cloudinary.uploader.destroy(public_id)
+        return result.get("result") == "ok"
+    except Exception as e:
+        return False
+    
+    

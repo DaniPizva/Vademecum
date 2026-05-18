@@ -257,9 +257,14 @@ class User(Base):
         "SecurityEvent",
         back_populates="user"
     )
+    
+    profile_image = relationship(
+        "UserImage", back_populates="user", 
+        uselist=False, 
+        cascade="all, delete-orphan")
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_image: bool = True):
+        data = {
             "id": self.id,
             "identification": self.identification,
             "email": self.email,
@@ -271,7 +276,6 @@ class User(Base):
             "password_changed_at": self.password_changed_at.isoformat() if self.password_changed_at else None,
             "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
             "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
-    
             "roles": [
                 {
                     "id": ur.role.id,
@@ -282,7 +286,9 @@ class User(Base):
                 for ur in self.roles
             ] if self.roles else []
         }
-
+        if include_image:
+            data["profile_image_url"] = self.profile_image.image_url if self.profile_image else None
+        return data
 
 class Role(Base):
     __tablename__ = "roles"
@@ -452,3 +458,15 @@ class ProductImage(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
     product = relationship("Product", back_populates="images")
+    
+class UserImage(Base):
+    __tablename__ = "user_images"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    image_url = Column(Text, nullable=False)
+    cloudinary_public_id = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="profile_image")
