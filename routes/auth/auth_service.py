@@ -52,10 +52,8 @@ def checkemail(email: str):
     if not re.match(pattern, email):
         raise ValueError('Invalid email format.')
 
-def generate_temp_password(length=12):
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
-
+def generate_temp_password(length=6):
+    return ''.join(secrets.choice("0123456789") for _ in range(length))
 # ------------------------------------------------------------------------------
 # NEW: Session builder (removes duplication between loginUser and get_me)
 # ------------------------------------------------------------------------------
