@@ -1,3 +1,4 @@
+# routes\laboratories\laboratories_routes.py
 from flask import Blueprint, request
 from routes.laboratories import laboratories_controller
 

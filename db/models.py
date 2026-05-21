@@ -131,6 +131,14 @@ class Product(Base):
     dosage_form = Column(String, nullable=True)
     posology = Column(String, nullable=True)
     notes = Column(String, nullable=True)
+    
+    #Codigo SKU para identificación web del producto
+    sku_code = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        index=True
+    )
 
     is_active = Column(Boolean, nullable=False, default=True) #true producto activo, false inactivo
     @property
@@ -157,6 +165,7 @@ class Product(Base):
             "dosage_form": self.dosage_form,
             "posology": self.posology,
             "notes": self.notes,
+            "SKU_code": self.sku_code,
             "is_active": self.is_active,
 
             # Backward compatible single image URL
@@ -186,6 +195,7 @@ class Product(Base):
             data["generic"] = self.generic_relation_p.to_dict()
 
         return data
+    
 class User(Base):
     __tablename__ = "users"
 
@@ -470,3 +480,188 @@ class UserImage(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="profile_image")
+    
+
+
+class PQRSTicket(Base):
+
+    __tablename__ = "pqrs_tickets"
+
+    id = Column(Integer, primary_key=True)
+
+    ticket_code = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    type = Column(String(30), nullable=False)
+
+    category = Column(String(50), nullable=False)
+
+    subject = Column(String(255), nullable=False)
+
+    description = Column(Text, nullable=False)
+
+    priority = Column(String(20), nullable=False)
+
+    status = Column(
+        String(30),
+        nullable=False,
+        default="Pendiente"
+    )
+
+    user_name = Column(String(100), nullable=False)
+
+    user_email = Column(String(150), nullable=False)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    # RELATIONSHIP
+    product_relations = relationship(
+        "PQRSProductRelation",
+        back_populates="pqrs_ticket",
+        cascade="all, delete-orphan"
+    )
+
+    def to_dict(
+        self,
+        include_products: bool = False
+    ):
+
+        data = {
+
+            "id": self.id,
+
+            "ticket_code": self.ticket_code,
+
+            "type": self.type,
+
+            "category": self.category,
+
+            "subject": self.subject,
+
+            "description": self.description,
+
+            "priority": self.priority,
+
+            "status": self.status,
+
+            "user_name": self.user_name,
+
+            "user_email": self.user_email,
+
+            "created_at":
+                self.created_at.isoformat()
+                if self.created_at else None,
+
+            "updated_at":
+                self.updated_at.isoformat()
+                if self.updated_at else None
+        }
+
+        # OPTIONAL RELATIONSHIP EXPANSION
+        if include_products:
+
+            data["related_products"] = [
+
+                relation.to_dict(
+                    include_product=True
+                )
+
+                for relation in self.product_relations
+            ]
+
+        return data
+    
+    
+class PQRSProductRelation(Base):
+
+    __tablename__ = "pqrs_product_relations"
+
+    id = Column(Integer, primary_key=True)
+
+    pqrs_id = Column(
+        Integer,
+        ForeignKey(
+            "pqrs_tickets.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    product_id = Column(
+        Integer,
+        ForeignKey(
+            "products.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    issue_type = Column(
+        String(100),
+        nullable=False
+    )
+
+    product_snapshot_name = Column(
+        String(255)
+    )
+
+    product_snapshot_sku = Column(
+        String(50)
+    )
+
+    # RELATIONSHIPS
+
+    pqrs_ticket = relationship(
+        "PQRSTicket",
+        back_populates="product_relations"
+    )
+
+    product = relationship(
+        "Product"
+    )
+
+    def to_dict(
+        self,
+        include_product: bool = False
+    ):
+
+        data = {
+
+            "id": self.id,
+
+            "pqrs_id": self.pqrs_id,
+
+            "product_id": self.product_id,
+
+            "issue_type": self.issue_type,
+
+            "product_snapshot_name":
+                self.product_snapshot_name,
+
+            "product_snapshot_sku":
+                self.product_snapshot_sku
+        }
+
+        # OPTIONAL PRODUCT EXPANSION
+        if include_product and self.product:
+
+            data["product"] = self.product.to_dict(
+                include_family=True,
+                include_laboratory=True,
+                include_generic=True
+            )
+
+        return data

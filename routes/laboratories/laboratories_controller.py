@@ -1,3 +1,4 @@
+# routes\laboratories\laboratories_controller.py
 from common.http import ok, bad_request, created
 ### ahora cargamos el service
 from routes.laboratories import laboratories_service
