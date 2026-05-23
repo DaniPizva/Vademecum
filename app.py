@@ -1,4 +1,3 @@
-# app.py
 import os
 from flask import Flask
 from flask_cors import CORS
@@ -6,8 +5,9 @@ from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
 
-# Import your existing Redis client
-from db.Redis import r as redis_client   # <-- ADD THIS
+# Única importación de Redis
+from db.Redis import r as redis_client, check_redis_connection
+
 from routes.Therapeutic_group.Therapeutic_group_routes import Therapeutic_group_bp
 from routes.descriptions.descriptions_routes import descriptions_bp
 from routes.auth.auth_routes import auth_bp
@@ -27,19 +27,21 @@ def run_app():
     )
     jwt = JWTManager(app)
 
-   
-    app.redis = redis_client   
+    # Asignar cliente Redis (puede ser None)
+    app.redis = redis_client
 
+    # Verificar conexión solo si el cliente existe
+    if app.redis is not None:
+        connected = check_redis_connection(max_retries=5, delay=2)
+        if not connected:
+            print("⚠️ La conexión a Redis falló. El sistema funcionará sin caché.")
+            app.redis = None
+        else:
+            print("✅ Redis cliente listo y conectado.")
+    else:
+        print("⚠️ No se pudo crear el cliente Redis. Sistema sin caché.")
 
-    try:
-        app.redis.ping()
-        print("Redis client ready (from db/Redis.py)")
-    except Exception as e:
-        print(f" Redis ping failed: {e}")
-
-    # -----------------------------
     # Configuración de CORS
-    # -----------------------------
     CORS(
         app,
         resources={r"/*": {"origins": "*"}},
@@ -59,10 +61,9 @@ def run_app():
     app.register_blueprint(families_bp, url_prefix="/families")
     app.register_blueprint(products_bp, url_prefix="/products")
     app.register_blueprint(users_bp, url_prefix="/users")
-    app.register_blueprint(pqrs_bp, url_prefix ="/pqrs")
+    app.register_blueprint(pqrs_bp, url_prefix="/pqrs")
 
     return app
-
 
 app = run_app()
 

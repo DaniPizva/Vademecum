@@ -1,5 +1,5 @@
 #es el unico que hace contacto con la base de datos, ni router ni controller hacen contacto
-
+# routes\descriptions\descriptions_service.py
 from typing import Any,Dict,List,Tuple, Optional
 from flask import request
 from contextlib import contextmanager
