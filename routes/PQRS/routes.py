@@ -109,7 +109,7 @@ def respondPQRS(id):
 
 @pqrs_bp.route(
     "/admin/delete/<int:id>",
-    methods=["DELETE"]
+    methods=["DELETE", "OPTIONS"]
 )
 def deletePQRS(id):
 

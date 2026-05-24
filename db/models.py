@@ -8,11 +8,13 @@ from sqlalchemy.orm import relationship #para crear una relacion # object relati
 import datetime
 from datetime import timezone, datetime
 from db.db import Base
+
 class Therapeutic_group(Base):
     __tablename__="therapeutic_groups"
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False) #no puede ser nulo, para que sea nulo =True
+    is_active = Column(Boolean, nullable=False, default=True)
     image_url = Column(String, nullable=True)
     
     relat_description_therapeutic_group = relationship("Description", back_populates="therapeutic_group_relation_d",passive_deletes=True
@@ -22,7 +24,8 @@ class Therapeutic_group(Base):
         return{
             "id": self.id,
             "name": self.name,
-            "image_url": self.image_url
+            "image_url": self.image_url,
+            "is_active": self.is_active
         }
     
 # Passive deletes ----> se usa para cuando una tabla tiene un relación con otra, y la que lleva el foreign key de la otra se ponga en null si se borra el registro de la tabla principal
@@ -31,6 +34,7 @@ class Laboratory(Base):
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
     logo_url = Column(Text,nullable=True)
     relat_product_laboratory = relationship("Product", back_populates="laboratory_relation_p",passive_deletes=True
 ) 
@@ -39,14 +43,18 @@ class Laboratory(Base):
         return{
             "id": self.id,
             "name": self.name,
-            "logo_url": self.logo_url
+            "logo_url": self.logo_url,
+            "is_active": self.is_active
         }
+        
+
 
 class Generic(Base):
     __tablename__="generics"
 
     id = Column(Integer,primary_key=True)
     name = Column(String(100), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
 
     relat_product_generic = relationship("Product", back_populates="generic_relation_p",passive_deletes=True) 
    
@@ -54,6 +62,7 @@ class Generic(Base):
         return{
             "id": self.id,
             "name": self.name,
+            "is_active": self.is_active
         }
     
 ##--------------------------
@@ -64,6 +73,7 @@ class Description(Base):
 
     id = Column(Integer,primary_key=True)
     description = Column(String, nullable=False)#no puede ser nulo, para que sea nulo =True
+    is_active = Column(Boolean, nullable=False, default=True)
 
     therapeutic_group_id = Column(Integer, ForeignKey("therapeutic_groups.id", ondelete="RESTRICT"),nullable=False)
     therapeutic_group_relation_d = relationship("Therapeutic_group", back_populates="relat_description_therapeutic_group")
@@ -74,7 +84,8 @@ class Description(Base):
         data = {
             "id": self.id,
             "description": self.description,
-            "therapeutic_group_id": self.therapeutic_group_id
+            "therapeutic_group_id": self.therapeutic_group_id,
+            "is_active": self.is_active
         }
 
         if include_therapeutic_group and self.therapeutic_group_relation_d:
@@ -90,7 +101,7 @@ class Family(Base):
     
     description_id = Column(Integer, ForeignKey("descriptions.id", ondelete="RESTRICT"),nullable=True)
     description_relation_f = relationship("Description", back_populates="relat_family_description")
-
+    is_active = Column(Boolean, nullable=False, default=True)
     mechanism_of_action = Column(String, nullable=True)
 
     relat_product_family = relationship("Product", back_populates="family_relation_p",passive_deletes=True
@@ -102,7 +113,8 @@ class Family(Base):
             "id": self.id,
             "name": self.name,
             "description_id": self.description_id,
-            "mechanism_of_action": self.mechanism_of_action
+            "mechanism_of_action": self.mechanism_of_action,
+            "is_active": self.is_active
         }
 
         if include_description and self.description_relation_f:
@@ -111,91 +123,7 @@ class Family(Base):
             )
 
         return data
-    
-class Product(Base):
-    __tablename__="products" 
-
-    id = Column(Integer,primary_key=True)
-    
-    family_id = Column(Integer, ForeignKey("families.id", ondelete="RESTRICT"),nullable=False)
-    family_relation_p = relationship("Family", back_populates="relat_product_family")
-
-    laboratory_id = Column(Integer, ForeignKey("laboratories.id", ondelete="RESTRICT"),nullable=True)
-    laboratory_relation_p = relationship("Laboratory", back_populates="relat_product_laboratory")
-
-    generic_id = Column(Integer, ForeignKey("generics.id", ondelete="RESTRICT"),nullable=True)
-    generic_relation_p = relationship("Generic", back_populates="relat_product_generic")
-
-    commercial_name = Column(String(100), nullable=False)
-    concentration = Column(String(100), nullable=True)
-    dosage_form = Column(String, nullable=True)
-    posology = Column(String, nullable=True)
-    notes = Column(String, nullable=True)
-    
-    #Codigo SKU para identificación web del producto
-    sku_code = Column(
-        String(20),
-        unique=True,
-        nullable=False,
-        index=True
-    )
-
-    is_active = Column(Boolean, nullable=False, default=True) #true producto activo, false inactivo
-    @property
-    def main_image(self):
-        """Return the first image marked as main, or None."""
-        return next((img for img in self.images if img.is_main), None)
-    images = relationship("ProductImage",back_populates="product",cascade="all, delete-orphan") #Relationship para la URL de la imagen.
-    
-    def to_dict(
-        self,
-        include_family: bool = False,
-        include_laboratory: bool = False,
-        include_generic: bool = False,
-        include_description: bool = False,
-        include_therapeutic_group: bool = False
-    ):
-        data = {
-            "id": self.id,
-            "family_id": self.family_id,
-            "laboratory_id": self.laboratory_id,
-            "generic_id": self.generic_id,
-            "commercial_name": self.commercial_name,
-            "concentration": self.concentration,
-            "dosage_form": self.dosage_form,
-            "posology": self.posology,
-            "notes": self.notes,
-            "SKU_code": self.sku_code,
-            "is_active": self.is_active,
-
-            # Backward compatible single image URL
-            "image": self.main_image.image_url if self.main_image else None,
-
-            # NEW: full image collection
-            "images": [
-                {
-                    "id": img.id,
-                    "url": img.image_url,
-                    "is_main": img.is_main
-                }
-                for img in self.images
-            ]
-        }
-
-        if include_family and self.family_relation_p:
-            data["family"] = self.family_relation_p.to_dict(
-                include_description=include_description,
-                include_therapeutic_group=include_therapeutic_group
-            )
-
-        if include_laboratory and self.laboratory_relation_p:
-            data["laboratory"] = self.laboratory_relation_p.to_dict()
-
-        if include_generic and self.generic_relation_p:
-            data["generic"] = self.generic_relation_p.to_dict()
-
-        return data
-    
+ 
 class User(Base):
     __tablename__ = "users"
 
@@ -358,6 +286,96 @@ class UserRole(Base):
         foreign_keys=[role_id],
         back_populates="users"
     )
+
+ 
+class Product(Base):
+    __tablename__="products" 
+
+    id = Column(Integer,primary_key=True)
+    
+    family_id = Column(Integer, ForeignKey("families.id", ondelete="RESTRICT"),nullable=False)
+    family_relation_p = relationship("Family", back_populates="relat_product_family")
+
+    laboratory_id = Column(Integer, ForeignKey("laboratories.id", ondelete="RESTRICT"),nullable=True)
+    laboratory_relation_p = relationship("Laboratory", back_populates="relat_product_laboratory")
+
+    generic_id = Column(Integer, ForeignKey("generics.id", ondelete="RESTRICT"),nullable=True)
+    generic_relation_p = relationship("Generic", back_populates="relat_product_generic")
+
+    commercial_name = Column(String(100), nullable=False)
+    concentration = Column(String(100), nullable=True)
+    dosage_form = Column(String, nullable=True)
+    posology = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    
+    #Codigo SKU para identificación web del producto
+    sku_code = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    is_active = Column(Boolean, nullable=False, default=True) #true producto activo, false inactivo
+    @property
+    def main_image(self):
+        """Return the first image marked as main, or None."""
+        return next((img for img in self.images if img.is_main), None)
+    images = relationship("ProductImage",back_populates="product",cascade="all, delete-orphan") #Relationship para la URL de la imagen.
+    
+    def to_dict(
+        self,
+        include_family: bool = False,
+        include_laboratory: bool = False,
+        include_generic: bool = False,
+        include_description: bool = False,
+        include_therapeutic_group: bool = False
+    ):
+        data = {
+            "id": self.id,
+            "family_id": self.family_id,
+            "laboratory_id": self.laboratory_id,
+            "generic_id": self.generic_id,
+            "commercial_name": self.commercial_name,
+            "concentration": self.concentration,
+            "dosage_form": self.dosage_form,
+            "posology": self.posology,
+            "notes": self.notes,
+            "SKU_code": self.sku_code,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+
+            # Backward compatible single image URL
+            "image": self.main_image.image_url if self.main_image else None,
+
+            # NEW: full image collection
+            "images": [
+                {
+                    "id": img.id,
+                    "url": img.image_url,
+                    "is_main": img.is_main
+                }
+                for img in self.images
+            ]
+        }
+
+        if include_family and self.family_relation_p:
+            data["family"] = self.family_relation_p.to_dict(
+                include_description=include_description,
+                include_therapeutic_group=include_therapeutic_group
+            )
+
+        if include_laboratory and self.laboratory_relation_p:
+            data["laboratory"] = self.laboratory_relation_p.to_dict()
+
+        if include_generic and self.generic_relation_p:
+            data["generic"] = self.generic_relation_p.to_dict()
+
+        return data
 
 class TermsVersion(Base):
     __tablename__ = "terms_versions"
@@ -533,6 +551,13 @@ class PQRSTicket(Base):
         back_populates="pqrs_ticket",
         cascade="all, delete-orphan"
     )
+    
+    messages = relationship(
+    "PQRSMessage",
+    back_populates="ticket",
+    cascade="all, delete-orphan",
+    order_by="PQRSMessage.created_at.asc()"
+    )
 
     def to_dict(
         self,
@@ -567,7 +592,12 @@ class PQRSTicket(Base):
 
             "updated_at":
                 self.updated_at.isoformat()
-                if self.updated_at else None
+                if self.updated_at else None,
+                
+            "messages": [
+                message.to_dict()
+                for message in self.messages
+            ],
         }
 
         # OPTIONAL RELATIONSHIP EXPANSION
@@ -665,3 +695,85 @@ class PQRSProductRelation(Base):
             )
 
         return data
+    
+# =========================================================
+# PQRS MESSAGE MODEL
+# =========================================================
+
+class PQRSMessage(Base):
+
+    __tablename__ = "pqrs_messages"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    pqrs_id = Column(
+        Integer,
+        ForeignKey("pqrs_tickets.id"),
+        nullable=False
+    )
+
+    sender_type = Column(
+        String(20),
+        nullable=False
+    )
+
+    message = Column(
+        Text,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+    
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    # =====================================================
+    # RELATIONSHIP
+    # =====================================================
+
+    ticket = relationship(
+        "PQRSTicket",
+        back_populates="messages"
+    )
+
+    # =====================================================
+    # SERIALIZATION
+    # =====================================================
+
+    def to_dict(self):
+
+        return {
+
+            "id":
+                self.id,
+
+            "pqrs_id":
+                self.pqrs_id,
+
+            "sender_type":
+                self.sender_type,
+
+            "message":
+                self.message,
+
+            "created_at":
+                self.created_at.isoformat()
+
+                if self.created_at
+                else None,
+            
+            "updated_at":
+                self.updated_at.isoformat()
+
+                if self.updated_at
+                else None
+        }

@@ -8,11 +8,11 @@ laboratories_bp = Blueprint("laboratories_bp", __name__)
 def getAll():
     return laboratories_controller.getAll()
 
-@laboratories_bp.route("/createLaboratory", methods=["POST"])
+@laboratories_bp.route("/create", methods=["POST"])
 def createLaboratory():
-    return laboratories_controller.createLaboratory(request.get_json() or {})
+    return laboratories_controller.create(request.get_json() or {})
 
-@laboratories_bp.route("/deleteLaboratory/<int:id>", methods=["DELETE"]) # el path <int:id>
+@laboratories_bp.route("/toggle-state/<int:id>", methods=["DELETE", "PATCH"]) # el path <int:id>
 def deleteLaboratory(id):
     return laboratories_controller.deleteLaboratory(id) 
 

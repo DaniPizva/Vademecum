@@ -8,26 +8,21 @@ def getAll(**kwargs):
         return bad_request(message="No se pudo obtener las familias", errors=err)
     return ok(data=data, message="Familias obtenidas con éxito")
 
-def createFamily(data):
-    result, err = families_service.createFamily(data)
+def create(data):
+    result, err = families_service.create(data)
     if err:
         return bad_request(message="Error creating family", errors=err)
     
     return created(
-        data=result.to_dict(include_description=True, include_therapeutic_group=True),
+        data=result,
         message="Family created successfully"
     )
 
-def deleteFamily(id: int):
-    result, err = families_service.deleteFamily(id)
+def toggle_family(id):
+    result, err = families_service.toggle_family_state(id)
     if err:
-        return bad_request(message="Error deleting family", errors=err)
-
-    return ok(
-        data={"delete": result},
-        message="Family with id: " + str(id) + " deleted successfully"
-    )
-
+        return bad_request(message="Toggle failed", errors=err)
+    return ok(data=result, message=f"Family {'activated' if result['is_active'] else 'deactivated'}")
 
 def updateFamily(id: int, data_body):
     result, err = families_service.updateFamily(id, data_body)

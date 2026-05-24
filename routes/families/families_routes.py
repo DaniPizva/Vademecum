@@ -15,14 +15,14 @@ def getAll():
     )
 
 
-@families_bp.route("/createFamily", methods=["POST"])
+@families_bp.route("/create", methods=["POST"])
 def createFamily():
-    return families_controller.createFamily(request.get_json() or {})
+    return families_controller.create(request.get_json() or {})
 
 
-@families_bp.route("/deleteFamily/<int:id>", methods=["DELETE"])
+@families_bp.route("/toggle-state/<int:id>", methods=["PATCH", "DELETE"])
 def deleteFamily(id):
-    return families_controller.deleteFamily(id)
+    return families_controller.toggle_family(id)
 
 
 @families_bp.route("/updateFamily/<int:id>", methods=["PUT"])

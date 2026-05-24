@@ -7,11 +7,11 @@ generics_bp = Blueprint("generics_bp", __name__)
 def getAll():
     return generics_controller.getAll()
 
-@generics_bp.route("/createGeneric", methods=["POST"])
+@generics_bp.route("/create", methods=["POST"])
 def createGeneric():
-    return generics_controller.createGeneric(request.get_json() or {})
+    return generics_controller.create(request.get_json() or {})
 
-@generics_bp.route("/deleteGeneric/<int:id>", methods=["DELETE"]) # el path <int:id>
+@generics_bp.route("/toggle-state/<int:id>", methods=["DELETE", "PATCH"]) # el path <int:id>
 def deleteGeneric(id):
     return generics_controller.deleteGeneric(id) 
 

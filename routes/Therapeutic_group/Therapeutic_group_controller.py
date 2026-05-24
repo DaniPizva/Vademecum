@@ -8,19 +8,19 @@ def getAll(): #a controller lo llama routes
     data, err = Therapeutic_group_service.getAll()
     if err:
         return bad_request(message="No se pudo obtener los Therapeutic groups", errors=err)
-    return ok(data=[d.to_dict() for d in data], message="Therapeutic groups obtenidas con éxito")#siempre fevolver como diccionario
+    return ok(data=data, message="Therapeutic groups obtenidas con éxito")#siempre fevolver como diccionario
 
-def createTg(data):
-    result, err = Therapeutic_group_service.createTg(data)
+def create(data):
+    result, err = Therapeutic_group_service.create(data)
     if err:
         return bad_request(message="Error creating Therapeutic group", errors=err)
-    return created(data=result.to_dict(), message="Therapeutic group created successfully")
+    return created(data=result, message="Therapeutic group created successfully")
 
 def deleteTg(id: int): #especificar que sea como un numero porque todo llega como string 
-    result, err = Therapeutic_group_service.deleteTg(id)
+    result, err = Therapeutic_group_service.toggle_therapeutic_group_state(id)
     if err:
         return bad_request(message="Error deleting therapeutic group", errors=err)
-    return ok(data={"delete":result}, message="Therapeutic group with id:" + str(id) + "deleted successfully")
+    return ok(data=result, message=f"Therapeutic group with id: {id}, {'permanently soft'} deleted")
 
 def updateTg(id: int, data_body): #especificar que sea como un numero porque todo llega como string 
     result, err = Therapeutic_group_service.updateTg(id, data_body)

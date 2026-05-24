@@ -49,7 +49,7 @@ def check_redis_connection(max_retries: int = 5, delay: float = 2.0) -> bool:
     Retorna True si la conexión es exitosa, False en caso contrario.
     """
     if r is None:
-        print("⚠️ Cliente Redis no disponible (falló la creación).")
+        print("Cliente Redis no disponible")
         return False
 
     for attempt in range(1, max_retries + 1):
@@ -58,18 +58,18 @@ def check_redis_connection(max_retries: int = 5, delay: float = 2.0) -> bool:
             # Operación de prueba (la clave expira en 60 segundos)
             r.set("Base REDIS", "Conectada", ex=60)
             test_value = r.get("Base REDIS")
-            print(f"✅ Redis conectado (intento {attempt}) - valor: {test_value}")
+            print(f"Redis conectado (intento {attempt}) - valor: {test_value}")
             return True
         except redis.exceptions.ConnectionError as e:
-            print(f"⚠️ Falló ping a Redis (intento {attempt}/{max_retries}): {e}")
+            print(f"Falló ping a Redis (intento {attempt}/{max_retries}): {e}")
             if attempt < max_retries:
                 time.sleep(delay)
                 delay *= 1.5   # backoff exponencial
         except Exception as e:
-            print(f"❌ Error inesperado en Redis: {e}")
+            print(f" Error inesperado en Redis: {e}")
             return False
 
-    print("❌ No se pudo conectar a Redis después de varios reintentos.")
+    print(" No se pudo conectar a Redis después de varios reintentos.")
     return False
 
 # ------------------------------------------------------------------------------

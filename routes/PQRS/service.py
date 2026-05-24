@@ -21,7 +21,8 @@ from db.db import SessionLocal
 from db.models import (
     Product,
     PQRSTicket,
-    PQRSProductRelation
+    PQRSProductRelation,
+    PQRSMessage
 )
 
 import json
@@ -265,6 +266,9 @@ def getTicket(
                     PQRSTicket.product_relations
                 ).joinedload(
                     PQRSProductRelation.product
+                ),
+                joinedload(
+                    PQRSTicket.messages
                 )
             )
 
@@ -283,6 +287,93 @@ def getTicket(
             }
 
         return ticket, None
+    
+def respondPQRS(
+    id: int,
+    data: Dict[str, Any]
+):
+
+    with get_db() as db:
+
+        ticket = (
+
+            db.query(PQRSTicket)
+
+            .options(
+                joinedload(
+                    PQRSTicket.messages
+                )
+            )
+
+            .filter(
+                PQRSTicket.id == id
+            )
+
+            .first()
+        )
+
+        if not ticket:
+
+            return None, {
+                "id":
+                "PQRS ticket not found"
+            }
+
+        response_message = (
+            data.get("response")
+            or ""
+        ).strip()
+
+        if not response_message:
+
+            return None, {
+                "response":
+                "Response message is required"
+            }
+
+        # =================================================
+        # CREATE MESSAGE
+        # =================================================
+
+        message = PQRSMessage(
+
+            pqrs_id=ticket.id,
+
+            sender_type="admin",
+
+            message=response_message
+        )
+
+        db.add(message)
+
+        # =================================================
+        # UPDATE TICKET STATUS
+        # =================================================
+
+        ticket.status = "Respondido"
+
+        ticket.updated_at = (
+            datetime.utcnow()
+        )
+
+        db.commit()
+
+        db.refresh(ticket)
+
+        return {
+
+            "ticket_id":
+                ticket.id,
+
+            "ticket_code":
+                ticket.ticket_code,
+
+            "status":
+                ticket.status,
+
+            "message":
+                message.to_dict()
+        }, None
 
 
 def validateSKU(
@@ -372,6 +463,9 @@ def getAllPQRS():
             .options(
                 joinedload(
                     PQRSTicket.product_relations
+                ),
+                joinedload(
+                    PQRSTicket.messages
                 )
             )
 
@@ -418,6 +512,9 @@ def getPQRSByStatus(
             .options(
                 joinedload(
                     PQRSTicket.product_relations
+                ),
+                joinedload(
+                    PQRSTicket.messages
                 )
             )
 

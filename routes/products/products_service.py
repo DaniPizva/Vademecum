@@ -7,12 +7,24 @@ from db.models import Product, Family, Laboratory, Generic, Description, Product
 from flask import current_app
 import json
 from datetime import datetime, timezone
-
+import random
+import string
 
 
 def get_redis():
     return current_app.redis if hasattr(current_app, 'redis') else None
 
+
+
+def _generate_temp_sku(db) -> str:
+    """Generate a short temporary SKU (≤20 chars) not currently in use."""
+    chars = string.ascii_uppercase + string.digits
+    for _ in range(10):
+        candidate = "TMP-" + ''.join(random.choices(chars, k=6))
+        exists = db.query(Product).filter(Product.sku_code == candidate).first()
+        if not exists:
+            return candidate
+    raise RuntimeError("Unable to generate unique temporary SKU")
 
 @contextmanager
 def get_db():
@@ -94,7 +106,6 @@ def _invalidate_product_caches(product_id: int = None):
     # Generic list caches
     redis.delete("products:list")
     redis.delete("products:viewmodels")
-    # Grouping caches (future extension)
     for key in redis.scan_iter("products:group:*"):
         redis.delete(key)
     if product_id:
@@ -225,9 +236,15 @@ def getViewById(id: int) -> Tuple[Optional[Dict], Any]:
 
     return viewmodel, None
 
+from uuid import uuid4
+from typing import Dict, Any, Tuple, Optional
+from sqlalchemy.orm import joinedload
+
+from sqlalchemy.orm import joinedload
+
 def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
-    """Create a new product (returns ORM object – not cached)."""
     with get_db() as db:
+        # --- all existing validation code ---
         commercial_name = (data.get("commercial_name") or "").strip()
         if not commercial_name:
             return None, {"commercial_name": "commercial_name is required"}
@@ -258,6 +275,10 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
         notes = (data.get("notes") or "").strip() or None
         is_active = data.get("is_active", True)
 
+        # SKU temporal para hacer flush
+        temp_sku = _generate_temp_sku(db)
+
+       
         product = Product(
             family_id=family_id,
             laboratory_id=laboratory_id,
@@ -267,13 +288,17 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
             dosage_form=dosage_form,
             posology=posology,
             notes=notes,
-            is_active=is_active
+            is_active=is_active,
+            sku_code=temp_sku
         )
         db.add(product)
-        db.commit()
-        db.refresh(product)
+        db.flush()      # Flush genera el id sin hacer commit
+        product_id = product.id
 
-        # Reload full relations (for controller's .to_dict())
+        final_sku = f"SKU-{product_id:03d}"
+        product.sku_code = final_sku
+        db.commit()           # Se hace commit con el SKU del ID
+        
         product = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
@@ -281,9 +306,8 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
             joinedload(Product.laboratory_relation_p),
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
-        ).filter(Product.id == product.id).first()
+        ).filter(Product.id == product_id).first()
 
-    # Invalidate all product list caches (new product appears everywhere)
     _invalidate_product_caches()
     return product, None
 

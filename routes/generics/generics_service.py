@@ -7,7 +7,7 @@ from db.db import SessionLocal
 from flask import current_app
 import json
 
-from db.models import Generic
+from db.models import Generic, Product
 
 def get_redis():
     return current_app.redis if hasattr(current_app, 'redis') else None
@@ -32,41 +32,59 @@ def getAll() -> Tuple[List[Dict], Any]:
     cache_key = "catalog:generics"
     
     if redis:
-        cached = redis.get(cache_key)
-        if cached:
-            return json.loads(cached), None
+        try:
+            cached = redis.get(cache_key)
+            if cached:
+                return json.loads(cached), None
+        except Exception as e:
+            pass
 
     with get_db() as db:
         generics = db.query(Generic).all()
-        serialized = [{"id": g.id, "name": g.name} for g in generics]
-
+        serialized = []
+        for f in generics:
+            # Compute product dependency count
+            dep_count = db.query(Product)\
+                          .filter(Product.generic_id == f.id)\
+                          .count()
+            serialized.append({
+                "id": f.id,
+                "name": f.name,
+                "is_active": f.is_active,        # include so frontend doesn’t need fallback
+                "dependency_count": dep_count
+            })
+            
     if redis:
-        redis.setex(cache_key, 21600, json.dumps(serialized))
+        try:
+            redis.setex(cache_key, 21600, json.dumps(serialized))
+        except Exception:
+            pass
 
     return serialized, None
      
-def createGeneric(data: Dict[str, Any]) -> Tuple[Optional[Generic],Any]: #flecha es lo que devuelve
-     with get_db() as db: #conecta db
-          g = Generic(name=data['name']) #de data extraigo el nombre y lo pongo en ciudad
-          db.add(g) #la agrega
-          db.commit() #commit ---> lo mete a la db, y refresh manual
-          db.refresh(g)
-          
-          
-          redis = get_redis()
-          if redis:
-                    redis.delete("catalog:generics")
-          return g, None
+def create(data: dict) -> Tuple[Any, Any]:
+    with get_db() as db:
+        gen = Generic(name=data['name'], is_active=True)
+        db.add(gen)
+        db.commit()
+        redis = get_redis()
+        if redis:
+            redis.delete("catalog:generics")
+        return gen.to_dict(), None
 
-def deleteGeneric(id: int) -> Tuple[bool,Any]: #flecha es lo que devuelve
-     with get_db() as db: #conecta db
-          generic_exist = db.query(Generic).filter(Generic.id == id).first() #devolver si existe la ciudad en Generic exist
-          if not generic_exist:
-               return False, {"id": "generic not found"}
-          db.delete(generic_exist)# si existe entonces que borre la ciudad
-          db.commit()
-          return True,None
-     
+def toggle_generic_state(id: int):
+    with get_db() as db:
+        gen = db.query(Generic).filter(Generic.id == id).first()
+        if not gen:
+            return False, {"id": "Generic not found"}
+
+        gen.is_active = not gen.is_active
+        db.commit()
+        redis = get_redis()
+        if redis:
+            redis.delete("catalog:generics")
+        return {"id": id, "is_active": gen.is_active}, None
+    
 def updateGeneric(id: int,data: Dict[str, Any]) -> Tuple[Optional[Generic],Any]: #flecha es lo que devuelve
      with get_db() as db: #conecta db
           g = db.query(Generic).filter(Generic.id == id).first()

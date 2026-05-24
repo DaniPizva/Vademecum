@@ -10,17 +10,17 @@ def getAll(**kwargs):
         return bad_request(message="No se pudo obtener los laboratorios", errors=err)
     return ok(data=data, message="Laboratorios obtenidos con éxito")
 
-def createLaboratory(data):
-    result, err = laboratories_service.createLaboratory(data)
+def create(data):
+    result, err = laboratories_service.create(data)
     if err:
         return bad_request(message="Error creating laboratory", errors=err)
-    return created(data=result.to_dict(), message="Laboratory created successfully")
+    return created(data=result, message="Laboratory created successfully")
 
 def deleteLaboratory(id: int): #especificar que sea como un numero porque todo llega como string 
-    result, err = laboratories_service.deleteLaboratory(id)
+    result, err = laboratories_service.toggle_laboratory_state(id)
     if err:
         return bad_request(message="Error deleting laboratory", errors=err)
-    return ok(data={"delete":result}, message="Laboratory with id:" + str(id) + "deleted successfully")
+    return ok(data=result, message=f"Laboratory with {id}: {'permanently soft'} deleted")
 
 def updateLaboratory(id: int, data_body): #especificar que sea como un numero porque todo llega como string 
     result, err = laboratories_service.updateLaboratory(id, data_body)

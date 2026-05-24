@@ -13,11 +13,11 @@ def before_request():
 def getAll():
     return Therapeutic_group_controller.getAll()
 
-@Therapeutic_group_bp.route("/createTg", methods=["POST"])
+@Therapeutic_group_bp.route("/create", methods=["POST"])
 def createTg():
-    return Therapeutic_group_controller.createTg(request.get_json() or {})
+    return Therapeutic_group_controller.create(request.get_json() or {})
 
-@Therapeutic_group_bp.route("/deleteTg/<int:id>", methods=["DELETE"]) # el path <int:id>
+@Therapeutic_group_bp.route("/toggle-state/<int:id>", methods=["DELETE", "PATCH"]) # el path <int:id>
 def deleteTg(id):
     return Therapeutic_group_controller.deleteTg(id) 
 
