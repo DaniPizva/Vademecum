@@ -1,3 +1,4 @@
+# app.py
 import os
 from flask import Flask
 from flask_cors import CORS
@@ -44,12 +45,18 @@ def run_app():
     # Configuración de CORS
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},
+        resources={
+            r"/*": {
+                "origins": [
+                    "http://localhost:4200",
+                    "https://frontend-test-flax.vercel.app"
+                ]
+            }
+        },
         supports_credentials=False,
-        expose_headers=["Authorization"],
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        origins=["http://localhost:4200"]
+        expose_headers=["Authorization"]
     )
 
     # Registro de rutas
@@ -71,5 +78,5 @@ if __name__ == "__main__":
     app.run(
         host=os.getenv("HOST", "127.0.0.1"),
         port=int(os.getenv("PORT", 5000)),
-        debug=True
+        debug=False
     )
