@@ -1,6 +1,6 @@
 # app.py
 import os
-from flask import Flask
+from flask import Flask, make_response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
@@ -73,6 +73,21 @@ def run_app():
     return app
 
 app = run_app()
+
+@app.after_request
+def after_request(response):
+    response.headers["Access-Control-Allow-Origin"] = "https://frontend-test-flax.vercel.app"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    return response
+
+@app.route('/auth/login', methods=['OPTIONS'])
+def login_options():
+    response = make_response()
+    response.headers["Access-Control-Allow-Origin"] = "https://frontend-test-flax.vercel.app"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+    return response
 
 if __name__ == "__main__":
     app.run(
