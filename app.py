@@ -35,12 +35,12 @@ def run_app():
     if app.redis is not None:
         connected = check_redis_connection(max_retries=5, delay=2)
         if not connected:
-            print("⚠️ La conexión a Redis falló. El sistema funcionará sin caché.")
+            print(" La conexión a Redis falló. El sistema funcionará sin caché.")
             app.redis = None
         else:
-            print("✅ Redis cliente listo y conectado.")
+            print(" Redis cliente listo y conectado.")
     else:
-        print("⚠️ No se pudo crear el cliente Redis. Sistema sin caché.")
+        print(" No se pudo crear el cliente Redis. Sistema sin caché.")
 
     # Configuración de CORS
     CORS(
@@ -74,20 +74,8 @@ def run_app():
 
 app = run_app()
 
-@app.after_request
-def after_request(response):
-    response.headers["Access-Control-Allow-Origin"] = "https://frontend-test-flax.vercel.app"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    return response
 
-@app.route('/auth/login', methods=['OPTIONS'])
-def login_options():
-    response = make_response()
-    response.headers["Access-Control-Allow-Origin"] = "https://frontend-test-flax.vercel.app"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    response.headers["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-    return response
+
 
 if __name__ == "__main__":
     app.run(
