@@ -15,7 +15,6 @@ def get_redis():
     return current_app.redis if hasattr(current_app, 'redis') else None
 
 
-
 def _generate_temp_sku(db) -> str:
     """Generate a short temporary SKU (≤20 chars) not currently in use."""
     chars = string.ascii_uppercase + string.digits
@@ -50,7 +49,7 @@ def _serialize_product(product: Product) -> Dict:
         "notes": product.notes,
         "is_active": product.is_active,
         "family_id": product.family_id,
-        "laboratory_id": product.laboratory_id,
+        # "laboratory_id" removed – no longer a column (FIX C2)
         "generic_id": product.generic_id,
         "created_at": product.created_at.isoformat() if product.created_at else None,
         "updated_at": product.updated_at.isoformat() if product.updated_at else None,
@@ -70,9 +69,10 @@ def _build_product_viewmodel(product: Product) -> Dict:
         if product.family_relation_p.description_relation_f:
             therapeutic_group = product.family_relation_p.description_relation_f.therapeutic_group_relation_d.name if product.family_relation_p.description_relation_f.therapeutic_group_relation_d else None
 
+    # FIX C1: use the correct relationship name 'laboratories'
     laboratory_name = None
-    if product.laboratory_relation_p:
-        laboratory_name = product.laboratory_relation_p.name
+    if product.laboratories:
+        laboratory_name = product.laboratories[0].name   # take first lab for single-string viewmodel
 
     generic_name = None
     if product.generic_relation_p:
@@ -122,11 +122,12 @@ def getAll(include_family=True, include_laboratory=True, include_generic=True,
             return json.loads(cached), None
 
     with get_db() as db:
+        # FIX C1: use 'laboratories' (the actual relationship)
         products = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),           # correct
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).all()
@@ -145,6 +146,7 @@ def getAll(include_family=True, include_laboratory=True, include_generic=True,
         redis.setex("products:list", 300, json.dumps(serialized))
     return serialized, None
 
+
 def getAllViewModels() -> Tuple[List[Dict], None]:
     """
     Get all products as UI‑ready viewmodels (for product catalog / admin grid).
@@ -157,11 +159,12 @@ def getAllViewModels() -> Tuple[List[Dict], None]:
             return json.loads(cached), None
 
     with get_db() as db:
+        # FIX C1
         products = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),       # correct
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).all()
@@ -172,6 +175,8 @@ def getAllViewModels() -> Tuple[List[Dict], None]:
         redis.setex("products:viewmodels", 600, json.dumps(viewmodels))  # TTL 10 min
 
     return viewmodels, None
+
+
 def getById(id: int, include_family=True, include_laboratory=True, include_generic=True,
             include_description=True, include_therapeutic_group=True) -> Tuple[Optional[Dict], Any]:
     redis = get_redis()
@@ -181,11 +186,12 @@ def getById(id: int, include_family=True, include_laboratory=True, include_gener
             return json.loads(cached), None
 
     with get_db() as db:
+        # FIX C1
         product = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).filter(Product.id == id).first()
@@ -205,6 +211,7 @@ def getById(id: int, include_family=True, include_laboratory=True, include_gener
         redis.setex(f"product:{id}", 900, json.dumps(serialized))
     return serialized, None
 
+
 def getViewById(id: int) -> Tuple[Optional[Dict], Any]:
     """
     Get a single product as UI‑ready viewmodel (for product detail page).
@@ -217,11 +224,12 @@ def getViewById(id: int) -> Tuple[Optional[Dict], Any]:
             return json.loads(cached), None
 
     with get_db() as db:
+        # FIX C1
         product = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).filter(Product.id == id).first()
@@ -236,12 +244,8 @@ def getViewById(id: int) -> Tuple[Optional[Dict], Any]:
 
     return viewmodel, None
 
-from uuid import uuid4
-from typing import Dict, Any, Tuple, Optional
-from sqlalchemy.orm import joinedload
 
-from sqlalchemy.orm import joinedload
-
+# FIX C2: createProduct accepts laboratory_ids (list) instead of laboratory_id
 def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
     with get_db() as db:
         # --- all existing validation code ---
@@ -257,11 +261,17 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
         if not family_exist:
             return None, {"family_id": "Family not found"}
 
-        laboratory_id = data.get("laboratory_id")
-        if laboratory_id is not None:
-            lab_exist = db.query(Laboratory).filter(Laboratory.id == laboratory_id).first()
-            if not lab_exist:
-                return None, {"laboratory_id": "Laboratory not found"}
+        # FIX C2: validate laboratory_ids (many-to-many)
+        laboratory_ids = data.get("laboratory_ids", [])
+        if not isinstance(laboratory_ids, list):
+            return None, {"laboratory_ids": "Must be a list of laboratory IDs"}
+
+        if laboratory_ids:
+            labs = db.query(Laboratory).filter(Laboratory.id.in_(laboratory_ids)).all()
+            if len(labs) != len(set(laboratory_ids)):
+                return None, {"laboratory_ids": "One or more laboratories do not exist"}
+        else:
+            labs = []
 
         generic_id = data.get("generic_id")
         if generic_id is not None:
@@ -278,10 +288,9 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
         # SKU temporal para hacer flush
         temp_sku = _generate_temp_sku(db)
 
-       
+        # FIX C2: no laboratory_id parameter; assign laboratories after creation
         product = Product(
             family_id=family_id,
-            laboratory_id=laboratory_id,
             generic_id=generic_id,
             commercial_name=commercial_name,
             concentration=concentration,
@@ -295,21 +304,26 @@ def createProduct(data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
         db.flush()      # Flush genera el id sin hacer commit
         product_id = product.id
 
+        # FIX C2: assign the many-to-many laboratories
+        product.laboratories = labs
+
         final_sku = f"SKU-{product_id:03d}"
         product.sku_code = final_sku
         db.commit()           # Se hace commit con el SKU del ID
-        
+
+        # FIX C1: load 'laboratories' (correct relationship)
         product = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).filter(Product.id == product_id).first()
 
     _invalidate_product_caches()
     return product, None
+
 
 def deleteProduct(id: int) -> Tuple[bool, Any]:
     """Toggle product active/inactive."""
@@ -324,6 +338,7 @@ def deleteProduct(id: int) -> Tuple[bool, Any]:
     # Invalidate caches for this product and all lists
     _invalidate_product_caches(product_id=id)
     return True, None
+
 
 def updateProduct(id: int, data: Dict[str, Any]) -> Tuple[Optional[Product], Any]:
     """Update product fields and return the updated ORM object."""
@@ -346,13 +361,18 @@ def updateProduct(id: int, data: Dict[str, Any]) -> Tuple[Optional[Product], Any
                 return None, {"family_id": "Family not found"}
             product.family_id = family_id
 
-        if "laboratory_id" in data:
-            lab_id = data.get("laboratory_id")
-            if lab_id is not None:
-                lab_exist = db.query(Laboratory).filter(Laboratory.id == lab_id).first()
-                if not lab_exist:
-                    return None, {"laboratory_id": "Laboratory not found"}
-            product.laboratory_id = lab_id
+        # FIX C2: replace laboratory_id with laboratory_ids (list)
+        if "laboratory_ids" in data:
+            lab_ids = data.get("laboratory_ids", [])
+            if not isinstance(lab_ids, list):
+                return None, {"laboratory_ids": "Must be a list of laboratory IDs"}
+            if lab_ids:
+                labs = db.query(Laboratory).filter(Laboratory.id.in_(lab_ids)).all()
+                if len(labs) != len(set(lab_ids)):
+                    return None, {"laboratory_ids": "One or more laboratories do not exist"}
+                product.laboratories = labs
+            else:
+                product.laboratories = []
 
         if "generic_id" in data:
             gen_id = data.get("generic_id")
@@ -376,12 +396,12 @@ def updateProduct(id: int, data: Dict[str, Any]) -> Tuple[Optional[Product], Any
         db.commit()
         db.refresh(product)
 
-        # Reload full relations
+        # Reload full relations (FIX C1)
         product = db.query(Product).options(
             joinedload(Product.family_relation_p)
                 .joinedload(Family.description_relation_f)
                 .joinedload(Description.therapeutic_group_relation_d),
-            joinedload(Product.laboratory_relation_p),
+            joinedload(Product.laboratories),
             joinedload(Product.generic_relation_p),
             joinedload(Product.images)
         ).filter(Product.id == product.id).first()

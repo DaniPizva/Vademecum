@@ -3,8 +3,8 @@
 #tablas en python se llaman models
 from __future__ import annotations 
 
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean, JSON, Text, DateTime
-from sqlalchemy.orm import relationship #para crear una relacion # object relation mapper
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Numeric, CheckConstraint, Boolean, JSON, Text, DateTime, UniqueConstraint
+from sqlalchemy.orm import relationship#para crear una relacion # object relation mapper
 import datetime
 from datetime import timezone, datetime
 from db.db import Base
@@ -13,7 +13,7 @@ class Therapeutic_group(Base):
     __tablename__="therapeutic_groups"
 
     id = Column(Integer,primary_key=True)
-    name = Column(String(100), nullable=False) #no puede ser nulo, para que sea nulo =True
+    name = Column(String(100), nullable=False) # no puede ser nulo, para que sea nulo =True
     is_active = Column(Boolean, nullable=False, default=True)
     image_url = Column(String, nullable=True)
     
@@ -21,7 +21,7 @@ class Therapeutic_group(Base):
 ) 
 
     def to_dict(self):#definir un diccionario que devuelva el id y nombre
-        return{
+        return {
             "id": self.id,
             "name": self.name,
             "image_url": self.image_url,
@@ -36,8 +36,7 @@ class Laboratory(Base):
     name = Column(String(100), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     logo_url = Column(Text,nullable=True)
-    relat_product_laboratory = relationship("Product", back_populates="laboratory_relation_p",passive_deletes=True
-) 
+    products = relationship("Product", secondary= "laboratoryProducts", back_populates="laboratories") 
 
     def to_dict(self):
         return{
@@ -46,7 +45,69 @@ class Laboratory(Base):
             "logo_url": self.logo_url,
             "is_active": self.is_active
         }
-        
+
+class LaboratoryProducts(Base):
+    __tablename__= "laboratoryProducts"
+    
+    __table_args__ = ( 
+        UniqueConstraint(
+        "product_id",
+        "laboratory_id",
+        name="uq_family_mechanism"
+        ),
+    )
+    
+    id = Column(Integer, primary_key=True)
+    product_id = Column(ForeignKey("products.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
+    laboratory_id = Column(ForeignKey("laboratories.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
+    
+    
+   
+    
+class Mechanisms(Base):
+    __tablename__ = "mechanisms"
+    id = Column(Integer, primary_key=True)
+    action = Column(Text, nullable=False)
+    is_active = Column(Boolean, nullable=False)
+    
+    families = relationship("Family", secondary="familyMechanisms", back_populates="mechanisms")
+    
+    
+    def to_dict(self, include_families=False):
+
+        data = {
+            "id": self.id,
+            "action": self.action,
+            "is_active": self.is_active
+        }
+
+        if include_families:
+            data["families"] = [
+                {
+                    "id": family.id,
+                    "name": family.name
+                }
+                for family in self.families
+            ]
+
+        return data
+
+class FamilyMechanisms(Base):
+    __tablename__ = "familyMechanisms"
+    
+    __table_args__ = ( 
+        UniqueConstraint(
+        "family_id",
+        "mechanism_id",
+        name="uq_family_mechanism"
+        ),
+    )
+    
+    id = Column(Integer, primary_key=True)
+    family_id = Column(ForeignKey("families.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
+    mechanism_id = Column(ForeignKey("mechanisms.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=False)
+    
+    
 
 
 class Generic(Base):
@@ -101,26 +162,49 @@ class Family(Base):
     
     description_id = Column(Integer, ForeignKey("descriptions.id", ondelete="RESTRICT"),nullable=True)
     description_relation_f = relationship("Description", back_populates="relat_family_description")
+    mechanisms = relationship("Mechanisms", secondary="familyMechanisms", back_populates="families")
     is_active = Column(Boolean, nullable=False, default=True)
-    mechanism_of_action = Column(String, nullable=True)
 
     relat_product_family = relationship("Product", back_populates="family_relation_p",passive_deletes=True
  ) 
 
-    def to_dict(self, include_description: bool = False,
-        include_therapeutic_group: bool = False):
+    def to_dict(
+    self,
+    include_description: bool = False,
+    include_therapeutic_group: bool = False,
+    include_mechanisms: bool = False,
+    include_mechanism_ids: bool = True
+):
+
         data = {
             "id": self.id,
             "name": self.name,
             "description_id": self.description_id,
-            "mechanism_of_action": self.mechanism_of_action,
-            "is_active": self.is_active
+            "is_active": self.is_active,
+
+           
+            "mechanism_ids": [
+                mechanism.id
+                for mechanism in self.mechanisms
+            ]
         }
 
         if include_description and self.description_relation_f:
-            data["description"] = self.description_relation_f.to_dict(
-                include_therapeutic_group=include_therapeutic_group
+            data["description"] = (
+                self.description_relation_f.to_dict(
+                    include_therapeutic_group=
+                    include_therapeutic_group
+                )
             )
+            
+        if include_mechanism_ids:
+            data["mechanism_ids"] = [m.id for m in self.mechanisms]
+
+        if include_mechanisms:
+            data["mechanisms"] = [
+                mechanism.to_dict()
+                for mechanism in self.mechanisms
+            ]
 
         return data
  
@@ -296,8 +380,7 @@ class Product(Base):
     family_id = Column(Integer, ForeignKey("families.id", ondelete="RESTRICT"),nullable=False)
     family_relation_p = relationship("Family", back_populates="relat_product_family")
 
-    laboratory_id = Column(Integer, ForeignKey("laboratories.id", ondelete="RESTRICT"),nullable=True)
-    laboratory_relation_p = relationship("Laboratory", back_populates="relat_product_laboratory")
+    laboratories = relationship("Laboratory", secondary="laboratoryProducts", back_populates="products")
 
     generic_id = Column(Integer, ForeignKey("generics.id", ondelete="RESTRICT"),nullable=True)
     generic_relation_p = relationship("Generic", back_populates="relat_product_generic")
@@ -337,7 +420,6 @@ class Product(Base):
         data = {
             "id": self.id,
             "family_id": self.family_id,
-            "laboratory_id": self.laboratory_id,
             "generic_id": self.generic_id,
             "commercial_name": self.commercial_name,
             "concentration": self.concentration,
@@ -369,8 +451,10 @@ class Product(Base):
                 include_therapeutic_group=include_therapeutic_group
             )
 
-        if include_laboratory and self.laboratory_relation_p:
-            data["laboratory"] = self.laboratory_relation_p.to_dict()
+        if include_laboratory:
+            data["laboratories"] = [laboratory.to_dict() for laboratory in self.laboratories]
+            data['laboratory'] = self.laboratories[0].to_dict() if self.laboratories else None
+            
 
         if include_generic and self.generic_relation_p:
             data["generic"] = self.generic_relation_p.to_dict()

@@ -18,6 +18,7 @@ from routes.families.families_routes import families_bp
 from routes.products.products_routes import products_bp
 from routes.users.users_routes import users_bp
 from routes.PQRS.routes import pqrs_bp
+from routes.mechanisms.routes import mechanisms_bp
 
 def run_app():
     load_dotenv()
@@ -69,6 +70,7 @@ def run_app():
     app.register_blueprint(products_bp, url_prefix="/products")
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(pqrs_bp, url_prefix="/pqrs")
+    app.register_blueprint(mechanisms_bp, url_prefix="/mechanisms")
 
     return app
 

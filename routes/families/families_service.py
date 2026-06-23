@@ -1,9 +1,11 @@
 # routes\families\families_service.py
 from typing import Any, Dict, List, Tuple, Optional
 from contextlib import contextmanager
+from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 
 from db.db import SessionLocal
-from db.models import Family, Description, Product
+from db.models import Family, Description, Product, Mechanisms
 from flask import current_app
 import json
 
@@ -48,17 +50,31 @@ def getAll() -> Tuple[List[Dict], Any]:
             pass
 
     with get_db() as db:
-        families = db.query(Family).all()
+        families = (db.query(Family).options(joinedload(Family.mechanisms)).all())
         serialized = []
         for f in families:
             # Compute product dependency count
-            dep_count = db.query(Product)\
-                          .filter(Product.family_id == f.id)\
-                          .count()
+            counts = (
+                db.query(
+                    Product.family_id,
+                    func.count(Product.id)
+                )
+                .group_by(Product.family_id)
+                .all()
+            )
+
+            count_map = dict(counts)
+            dep_count = count_map.get(f.id, 0) 
+                        
             serialized.append({
                 "id": f.id,
                 "name": f.name,
-                "is_active": f.is_active,        # include so frontend doesn’t need fallback
+                "description_id": f.description_id,
+                "mechanism_ids": [
+                    m.id
+                    for m in f.mechanisms
+                ],
+                "is_active": f.is_active,
                 "dependency_count": dep_count
             })
 
@@ -85,12 +101,30 @@ def create(data: dict) -> Tuple[Any, Any]:
             return None, {"description_id": "Description does not exist or is inactive"}
 
         family = Family(
-            name=data['name'],
+            name=data["name"],
             description_id=description_id,
-            mechanism_of_action=data.get('mechanism_of_action', '')
         )
+
+        mechanism_ids = data.get("mechanism_ids", [])
+
+        if mechanism_ids:
+
+            mechanisms = (
+                db.query(Mechanisms)
+                .filter(Mechanisms.id.in_(mechanism_ids))
+                .all()
+            )
+
+            if len(mechanisms) != len(set(mechanism_ids)):
+                return None, {
+                    "mechanism_ids": "One or more mechanisms do not exist"
+                }
+
+            family.mechanisms = mechanisms
+
         db.add(family)
         db.commit()
+        db.refresh(family)
 
         redis = get_redis()
         if redis:
@@ -113,12 +147,12 @@ def toggle_family_state(id: int):
             _invalidate_caches()
             return {"id": id, "is_active": False}, None
 
-        # Activation: verify parent Description is active
+        # Activación -> verifica que su objeto a referenciar este activo
         if not family.description_relation_f:
             return False, {"parent": "Family has no associated description"}
         if not family.description_relation_f.is_active:
             return False, {"parent": "Cannot activate family because its description is inactive"}
-
+        
         family.is_active = True
         db.commit()
         _invalidate_caches()
@@ -128,31 +162,85 @@ def toggle_family_state(id: int):
         
 
 
-def updateFamily(id: int, data: Dict[str, Any]) -> Tuple[Optional[Family], Any]:
+def updateFamily(
+    id: int,
+    data: Dict[str, Any]
+):
+
     with get_db() as db:
-        f = db.query(Family).filter(Family.id == id).first()
+
+        f = (
+            db.query(Family)
+            .options(joinedload(Family.mechanisms))
+            .filter(Family.id == id)
+            .first()
+        )
+
         if not f:
-            return None, {"id": "Family not found"}
+            return None, {
+                "id": "Family not found"
+            }
 
         if "name" in data:
+
             name = (data.get("name") or "").strip()
+
             if not name:
-                return None, {"name": "name cannot be empty"}
+                return None, {
+                    "name": "name cannot be empty"
+                }
+
             f.name = name
 
         if "description_id" in data:
+
             description_id = data.get("description_id")
 
-            if description_id is not None:
-                description_exist = db.query(Description).filter(Description.id == description_id).first()
-                if not description_exist:
-                    return None, {"description_id": "Description not found"}
+            description = (
+                db.query(Description)
+                .filter(
+                    Description.id == description_id
+                )
+                .first()
+            )
+
+            if not description:
+                return None, {
+                    "description_id":
+                    "Description not found"
+                }
 
             f.description_id = description_id
 
-        if "mechanism_of_action" in data:
-            f.mechanism_of_action = (data.get("mechanism_of_action") or "").strip() or None
+        if "mechanism_ids" in data:
+
+            mechanism_ids = data.get(
+                "mechanism_ids",
+                []
+            )
+
+            mechanisms = (
+                db.query(Mechanisms)
+                .filter(
+                    Mechanisms.id.in_(
+                        mechanism_ids
+                    )
+                )
+                .all()
+            )
+
+            if len(mechanisms) != len(set(mechanism_ids)):
+                return None, {
+                    "mechanism_ids":
+                    "One or more mechanisms do not exist"
+                }
+
+            f.mechanisms = mechanisms
 
         db.commit()
+
         db.refresh(f)
-        return f, None
+
+        _invalidate_caches()
+
+        return f.to_dict(), None

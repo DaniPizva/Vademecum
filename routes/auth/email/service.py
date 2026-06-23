@@ -23,12 +23,14 @@ def send_new_user_email(
     verification_code: str
 ):
 
-    subject = "Bienvenido al sistema"
+    subject = "Bienvenido a VadeMecum"
 
     body = f"""
-Hola {full_name},
+Hola {full_name}, hemos recibido tu solicitud de registro y deseamos notificarte que
 
-Tu cuenta ha sido creada exitosamente.
+Tu cuenta ha sido creada exitosamente!.
+
+Con los siguientes datos podras acceder a tu cuenta:
 
 Correo:
 {to_email}
@@ -39,10 +41,10 @@ Contraseña temporal:
 Código de verificación:
 {verification_code}
 
-Por seguridad, deberás cambiar tu contraseña
-al ingresar al sistema.
+En VadeMecum Valoramos tu seguridad, es por eso que deberás cambiar tu contraseña temporal, la cual te hemos asignado
+al registrate en el sistema.
 
-Si no solicitaste esta cuenta, ignora este mensaje.
+Si no solicitaste esta cuenta, por favor ignora este mensaje y realize un chequeo de seguridad de tus redes.
 """
 
     msg = EmailMessage()

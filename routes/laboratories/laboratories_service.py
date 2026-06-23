@@ -4,9 +4,10 @@ from typing import Any,Dict,List,Tuple, Optional
 from flask import request
 from contextlib import contextmanager
 from db.db import SessionLocal
-from db.models import Laboratory, Product
+from db.models import Laboratory, Product, LaboratoryProducts
 from flask import current_app
 import json
+from sqlalchemy.orm import joinedload
 
 def get_redis():
     return current_app.redis if hasattr(current_app, 'redis') else None
@@ -40,18 +41,17 @@ def getAll() -> Tuple[List[Dict], Any]:
 
 
     with get_db() as db:
-        labs = db.query(Laboratory).all()
+        laboratories = (db.query(Laboratory).options(joinedload(Laboratory.products)).all())
+
         serialized = []
-        for f in labs:
-            # Compute product dependency count
-            dep_count = db.query(Product)\
-                          .filter(Product.laboratory_id == f.id)\
-                          .count()
+        
+        for lab in laboratories:
+            dependency_count = len(lab.products)
             serialized.append({
-                "id": f.id,
-                "name": f.name,
-                "is_active": f.is_active,        # include so frontend doesn’t need fallback
-                "dependency_count": dep_count
+                "id": lab.id,
+                "name": lab.name,
+                "is_active": lab.is_active,
+                "dependency_count": dependency_count
             })
             
     if redis:
@@ -98,4 +98,4 @@ def updateLaboratory(id: int,data: Dict[str, Any]) -> Tuple[Optional[Laboratory]
           l.name = (data.get("name") or "").strip()  #para que busque el name y que quite los espacios # toca agregas mas dependiendo de si la cLaboratory tiene mas cosas
           db.commit() #commit ---> lo mete a la db, y refresh manual
           db.refresh(l)
-          return l, None
+          return l.to_dict(), None
