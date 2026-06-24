@@ -58,7 +58,8 @@ def getAll() -> Tuple[List[Dict], Any]:
                 "id": d.id,
                 "description": d.description,
                 "is_active": d.is_active,
-                "dependency_count": dep_count
+                "dependency_count": dep_count,
+                "therapeutic_group_id": d.therapeutic_group_id
             })
 
     if redis:
@@ -124,11 +125,21 @@ def toggle_description_state(id: int):
 
 def updateDescription(id: int,data: Dict[str, Any]) -> Tuple[Optional[Description],Any]: #flecha es lo que devuelve
      with get_db() as db: #conecta db
-          d = db.query(Description).filter(Description.id == id).first()
-          if not d:
-               return False, {"id": "Description with:" + str(id) + "not found"} #para ser mas especifico
-          d.description = (data.get("description") or "").strip()  #para que busque el name y que quite los espacios # toca agregas mas dependiendo de si la categoria tiene mas cosas
-          db.commit() #commit ---> lo mete a la db, y refresh manual
-          db.refresh(d)
-          return d, None
+        d = db.query(Description).filter(Description.id == id).first()
+        if not d:
+            return False, {"id": "Description with:" + str(id) + "not found"} #para ser mas especifico
+           
+        if "therapeutic_group_id" in data:
+            tg_id = data.get("therapeutic_group_id")
+            if tg_id is None:
+                 return False, {"therapeutic_group_id": "Cannot be null"}
+            tg = db.query(Therapeutic_group).filter(Therapeutic_group.id == tg_id).first()
+            if not tg:
+                return False, {"therapeutic_group_id": "Therapeutic group not found"}
+            d.therapeutic_group_id = tg_id
+            
+        d.description = (data.get("description") or "").strip()  #para que busque el name y que quite los espacios # toca agregas mas dependiendo de si la categoria tiene mas cosas
+        db.commit() #commit ---> lo mete a la db, y refresh manual
+        db.refresh(d)
+        return d, None
 
