@@ -68,6 +68,19 @@ def changePassword(user_id, data):
         return bad_request(message="Error changing password", errors=err)
     return ok(message="Password updated", data={})
 
+def ResetPassword(data):
+    """Changes password, conditionally requiring current password."""
+    success, err = auth_service.reset_password(data)
+    if err:
+        return bad_request(message="Error changing password", errors=err)
+    return ok(message="Password updated", data={})
+
+def RequestResetPassword(data):
+    """Request Changes password."""
+    success, err = auth_service.RequestResetPassword(data)
+    if err:
+        return bad_request(message="Error changing password", errors=err)
+    return ok(message="Email sent", data={})
 
 def me(user_id):
     """Returns current user state and a new access token to extend the session."""

@@ -14,7 +14,7 @@ import string
 from datetime import datetime, timezone, timedelta
 import random
 import json
-from routes.auth.email.service import send_new_user_email
+from routes.email.service import send_new_user_email, send_password_reset_email
 
 # ------------------------------------------------------------------------------
 # Redis client helper (singleton per Flask app context)
@@ -25,7 +25,7 @@ def get_redis():
     return current_app.redis
 
 # ------------------------------------------------------------------------------
-# Database session (unchanged)
+# Database session
 # ------------------------------------------------------------------------------
 
 @contextmanager
@@ -40,7 +40,7 @@ def get_db():
         db.close()
 
 # ------------------------------------------------------------------------------
-# Helper: email validation (unchanged)
+# Email validation
 # ------------------------------------------------------------------------------
 
 def checkemail(email: str):
@@ -404,10 +404,11 @@ def change_password(user_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
                 datetime.now(timezone.utc) > user.verification_code_expires_at):
                 return False, {"message": "Código expirado"}
         else:
-            if not current_password:
-                return False, {"message": "current_password es requerido"}
-            if not check_password_hash(user.password_hash, current_password):
-                return False, {"message": "Contraseña actual incorrecta"}
+            if current_password:
+                if not check_password_hash(user.password_hash, current_password):
+                    return False, {"message": "Contraseña actual incorrecta"}
+            else:
+                pass
 
         user.password_hash = generate_password_hash(new_password)
         user.password_changed_at = datetime.now(timezone.utc)
@@ -426,4 +427,95 @@ def change_password(user_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
     if redis:
         redis.delete(f"user:{user_id}")
 
+    return True, None
+
+
+def reset_password(data: Dict[str, Any]) -> Tuple[bool, Any]:
+    new_password = (data.get("new_password") or "").strip()
+    correo_institucional = (data.get("correo_institucional") or "").strip()
+
+    if not new_password:
+        return False, {"message": "new_password es requerido"}
+
+    with get_db() as db:
+        user = db.query(User).filter(User.email == correo_institucional).first()
+        if not user:
+            return False, {"message": "User not found"}
+        
+        user_id = user.id
+        verification_code = (data.get("verification_code") or "").strip()
+
+      
+        if not verification_code:
+                return False, {"message": "verification_code es requerido"}
+        if (not user.temporary_verification_code or
+                user.temporary_verification_code != verification_code):
+                return False, {"message": "Código de verificación inválido"}
+        if (user.verification_code_expires_at and
+                datetime.now(timezone.utc) > user.verification_code_expires_at):
+                return False, {"message": "Código expirado"}
+        
+
+        user.password_hash = generate_password_hash(new_password)
+        user.password_changed_at = datetime.now(timezone.utc)
+        if user.first_login_at is None:
+            user.first_login_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(timezone.utc)
+        user.temporary_verification_code = None
+        user.verification_code_expires_at = None
+        db.add(PasswordHistory(user_id=user.id, password_hash=user.password_hash, created_at=datetime.now(timezone.utc)))
+        db.commit()
+
+    # After password change, invalidate session and user detail caches
+    invalidate_user_session(user_id)
+    # Also invalidate any user detail cache if used elsewhere
+    redis = get_redis()
+    if redis:
+        redis.delete(f"user:{user_id}")
+
+    return True, None
+
+
+
+def RequestResetPassword(data: Dict[str, Any]) -> Tuple[bool, Any]:
+    
+    correo_institucional = (data.get("correo_institucional") or "").strip()
+   
+    if not correo_institucional:
+        return False, {"message": "correo_institucional requerido"}
+    
+
+    with get_db() as db:
+        user = db.query(User).filter(User.email == correo_institucional).first()
+        if not user:
+            return False, {"message": "User not found"}
+
+        verification_code = str(random.randint(10000, 99999))
+
+        user.temporary_verification_code = verification_code
+
+        user.verification_code_expires_at = (
+            datetime.now(timezone.utc)
+            + timedelta(minutes=15)
+        )
+        
+        
+        db.add(user)
+        db.commit()
+        
+        try:
+
+            send_password_reset_email(
+                to_email=user.email,
+                full_name=user.full_name,
+                verification_code=verification_code
+            )
+
+        except Exception as email_error:
+
+            print(
+                "EMAIL ERROR:",
+                str(email_error)
+            )
+                
     return True, None

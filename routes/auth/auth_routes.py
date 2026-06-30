@@ -36,6 +36,17 @@ def changePassword():
     data = request.get_json() or {}
     return auth_controller.changePassword(int(current_user_id), data)
 
+@auth_bp.route("/reset-password", methods=["POST"])
+def ResetPassword():
+    data = request.get_json() or {}
+    return auth_controller.ResetPassword(data)
+
+
+@auth_bp.route("/request-reset-password", methods=["POST"])
+def requestResetPassword():
+    data = request.get_json() or {}
+    return auth_controller.RequestResetPassword(data)
+
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
